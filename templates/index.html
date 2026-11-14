@@ -1,0 +1,70 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart File Organizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <div class="container">
+
+        <header>
+            <h1>📁 Smart File Organizer</h1>
+            <p>Organize your files automatically with Python.</p>
+        </header>
+
+        <main>
+            <section class="upload-box">
+                <div class="upload-icon">☁️</div>
+
+                <h2>Upload Your Files</h2>
+                <p>Select multiple files to organize them automatically.</p>
+
+                <input type="file" id="fileInput" multiple>
+
+                <label for="fileInput" class="upload-button">
+                    Choose Files
+                </label>
+
+                <p id="fileCount">No files selected</p>
+
+                <button id="organizeBtn">
+                    Organize Files
+                </button>
+
+                <div id="status"></div>
+            </section>
+
+            <section class="features">
+                <h2>File Categories</h2>
+
+                <div class="categories">
+                    <div class="category">🖼️<p>Images</p></div>
+                    <div class="category">📄<p>Documents</p></div>
+                    <div class="category">🎬<p>Videos</p></div>
+                    <div class="category">🎵<p>Audio</p></div>
+                    <div class="category">📦<p>Archives</p></div>
+                    <div class="category">📁<p>Others</p></div>
+                </div>
+            </section>
+
+            <section class="results">
+                <h2>Organization Results</h2>
+                <div id="results">
+                    Your organized files will appear here.
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Built with Python and Flask | First Project</p>
+        </footer>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

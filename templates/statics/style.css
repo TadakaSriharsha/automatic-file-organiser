@@ -1,0 +1,160 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f0f4f8;
+    color: #1e293b;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 35px;
+}
+
+header h1 {
+    color: #2563eb;
+    font-size: 34px;
+    margin-bottom: 12px;
+}
+
+header p {
+    color: #64748b;
+}
+
+.upload-box {
+    background: white;
+    padding: 45px 20px;
+    text-align: center;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.06);
+}
+
+.upload-icon {
+    font-size: 55px;
+    margin-bottom: 15px;
+}
+
+.upload-box h2 {
+    margin-bottom: 10px;
+}
+
+.upload-box p {
+    color: #64748b;
+    margin-bottom: 20px;
+}
+
+#fileInput {
+    display: none;
+}
+
+.upload-button {
+    display: inline-block;
+    background: #2563eb;
+    color: white;
+    padding: 12px 25px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 15px 0;
+}
+
+#organizeBtn {
+    display: block;
+    margin: 15px auto;
+    background: #16a34a;
+    color: white;
+    border: none;
+    padding: 13px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#organizeBtn:hover,
+.upload-button:hover {
+    opacity: 0.85;
+}
+
+#organizeBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.features, .results {
+    margin-top: 30px;
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+}
+
+.features h2, .results h2 {
+    margin-bottom: 20px;
+}
+
+.categories {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.category {
+    background: #eff6ff;
+    text-align: center;
+    padding: 25px 10px;
+    border-radius: 10px;
+    font-size: 30px;
+}
+
+.category p {
+    font-size: 15px;
+    margin-top: 10px;
+}
+
+#results {
+    color: #475569;
+    line-height: 2;
+}
+
+#status {
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+.success {
+    color: #16a34a;
+}
+
+.error {
+    color: #dc2626;
+}
+
+footer {
+    text-align: center;
+    margin-top: 35px;
+    color: #64748b;
+}
+
+@media (max-width: 600px) {
+    .container {
+        margin: 15px auto;
+        padding: 12px;
+    }
+
+    header h1 {
+        font-size: 25px;
+    }
+
+    .categories {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
