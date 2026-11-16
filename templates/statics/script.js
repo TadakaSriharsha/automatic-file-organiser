@@ -1,4 +1,5 @@
 const MAX_UPLOAD_SIZE = 20 * 1024 * 1024;
+const MAX_FILES_PER_UPLOAD = 100;
 const FILE_CATEGORIES = ["Images", "Documents", "Videos", "Audio", "Archives", "Others"];
 const CATEGORY_LABELS = {
     Images: ["image", "images"],
@@ -27,6 +28,8 @@ const categoryFilter = document.getElementById("categoryFilter");
 const emptySearch = document.getElementById("emptySearch");
 const toast = document.getElementById("toast");
 const clearQueueBtn = document.getElementById("clearQueueBtn");
+const downloadZipBtn = document.getElementById("downloadZipBtn");
+const downloadExpiry = document.getElementById("downloadExpiry");
 const aiFileInput = document.getElementById("aiFileInput");
 const aiFileName = document.getElementById("aiFileName");
 const aiInstruction = document.getElementById("aiInstruction");
@@ -40,6 +43,16 @@ const aiProgressPercent = document.getElementById("aiProgressPercent");
 const aiProgressFill = document.getElementById("aiProgressFill");
 const aiDownload = document.getElementById("aiDownload");
 const aiDownloadLink = document.getElementById("aiDownloadLink");
+const reviewFileInput = document.getElementById("reviewFileInput");
+const reviewFileName = document.getElementById("reviewFileName");
+const reviewConsent = document.getElementById("reviewConsent");
+const reviewDocumentBtn = document.getElementById("reviewDocumentBtn");
+const reviewStatus = document.getElementById("reviewStatus");
+const reviewResults = document.getElementById("reviewResults");
+const reviewSummary = document.getElementById("reviewSummary");
+const reviewStrengthsWrap = document.getElementById("reviewStrengthsWrap");
+const reviewStrengths = document.getElementById("reviewStrengths");
+const reviewSuggestions = document.getElementById("reviewSuggestions");
 
 let queuedFiles = [];
 let organizedFiles = [];
@@ -48,6 +61,8 @@ let isUploading = false;
 let selectedAiFile = null;
 let isAiEditing = false;
 let aiOutputUrl = null;
+let selectedReviewFile = null;
+let isReviewing = false;
 
 function formatBytes(bytes) {
     if (bytes < 1024) return `${bytes} B`;
@@ -118,13 +133,18 @@ function updateQueue() {
 
 function addFiles(files) {
     if (isUploading) return;
-    const rejected = [];
+    const rejectedForSize = [];
+    const rejectedForCount = [];
     const accepted = [];
     let remainingSize = MAX_UPLOAD_SIZE - queuedFiles.reduce((sum, file) => sum + file.size, 0);
 
     Array.from(files).forEach(file => {
+        if (queuedFiles.length + accepted.length >= MAX_FILES_PER_UPLOAD) {
+            rejectedForCount.push(file.name);
+            return;
+        }
         if (file.size > remainingSize) {
-            rejected.push(file.name);
+            rejectedForSize.push(file.name);
         } else {
             accepted.push(file);
             remainingSize -= file.size;
@@ -138,9 +158,16 @@ function addFiles(files) {
         progressWrap.hidden = true;
     }
 
-    if (rejected.length) {
-        const names = rejected.length > 1 ? `${rejected.length} files` : rejected[0];
-        setStatus(`${names} would exceed the 20 MB total upload limit and were not added.`, "error");
+    const errors = [];
+    if (rejectedForSize.length) {
+        const names = rejectedForSize.length > 1 ? `${rejectedForSize.length} files` : rejectedForSize[0];
+        errors.push(`${names} would exceed the 20 MB total upload limit`);
+    }
+    if (rejectedForCount.length) {
+        errors.push(`only ${MAX_FILES_PER_UPLOAD} files can be organized at once`);
+    }
+    if (errors.length) {
+        setStatus(`${errors.join("; ")}.`, "error");
     }
 }
 
@@ -299,6 +326,140 @@ function finishAIEdit(success = false) {
     }
 }
 
+function setReviewStatus(message, kind = "") {
+    reviewStatus.textContent = message;
+    reviewStatus.className = `review-status${kind ? ` ${kind}` : ""}`;
+}
+
+function updateReviewButton() {
+    reviewDocumentBtn.disabled = isReviewing || !selectedReviewFile || !reviewConsent.checked;
+    reviewFileInput.disabled = isReviewing;
+    reviewConsent.disabled = isReviewing;
+}
+
+function selectReviewFile(file) {
+    selectedReviewFile = null;
+    reviewResults.hidden = true;
+    reviewStrengths.replaceChildren();
+    reviewSuggestions.replaceChildren();
+    if (!file) {
+        reviewFileName.textContent = "No document selected";
+        setReviewStatus("");
+        updateReviewButton();
+        return;
+    }
+
+    if (!/\.(pdf|docx|txt)$/i.test(file.name)) {
+        reviewFileInput.value = "";
+        reviewFileName.textContent = "No document selected";
+        setReviewStatus("Choose a PDF, Word .docx, or text .txt file.", "error");
+        updateReviewButton();
+        return;
+    }
+
+    if (file.size > MAX_UPLOAD_SIZE) {
+        reviewFileInput.value = "";
+        reviewFileName.textContent = "No document selected";
+        setReviewStatus("The document exceeds the 20 MB limit.", "error");
+        updateReviewButton();
+        return;
+    }
+
+    selectedReviewFile = file;
+    reviewFileName.textContent = `${file.name} · ${formatBytes(file.size)}`;
+    reviewFileName.title = file.name;
+    setReviewStatus("");
+    updateReviewButton();
+}
+
+function renderDocumentReview(review) {
+    reviewSummary.textContent = review.summary;
+    reviewStrengths.replaceChildren();
+    review.suggestions.forEach((suggestion, index) => {
+        const item = document.createElement("li");
+        item.className = "review-suggestion";
+        item.style.animationDelay = `${Math.min(index * 45, 225)}ms`;
+
+        const title = document.createElement("h4");
+        title.textContent = suggestion.title;
+        const detail = document.createElement("p");
+        detail.textContent = suggestion.detail;
+        item.append(title, detail);
+        reviewSuggestions.appendChild(item);
+    });
+
+    review.strengths.forEach(strength => {
+        const item = document.createElement("li");
+        item.textContent = strength;
+        reviewStrengths.appendChild(item);
+    });
+    reviewStrengthsWrap.hidden = review.strengths.length === 0;
+    reviewResults.hidden = false;
+}
+
+async function reviewDocument() {
+    if (!selectedReviewFile || !reviewConsent.checked || isReviewing) return;
+
+    isReviewing = true;
+    reviewResults.hidden = true;
+    setReviewStatus("Reading your document and preparing suggestions…");
+    reviewDocumentBtn.querySelector("span").textContent = "Reviewing…";
+    updateReviewButton();
+
+    const formData = new FormData();
+    formData.append("document", selectedReviewFile);
+    formData.append("consent", "true");
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 105000);
+
+    try {
+        const response = await fetch("/ai-review", {
+            method: "POST",
+            body: formData,
+            signal: controller.signal
+        });
+        let data;
+        try {
+            data = await response.json();
+        } catch {
+            setReviewStatus("The server returned an unreadable response. Please try again.", "error");
+            return;
+        }
+
+        if (!response.ok) {
+            setReviewStatus(data.error || "Document review failed. Please try again.", "error");
+            return;
+        }
+
+        if (
+            typeof data.summary !== "string"
+            || !Array.isArray(data.strengths)
+            || !data.strengths.every(item => typeof item === "string")
+            || !Array.isArray(data.suggestions)
+            || !data.suggestions.every(item => item && typeof item.title === "string" && typeof item.detail === "string")
+        ) {
+            setReviewStatus("The server returned incomplete review details. Please try again.", "error");
+            return;
+        }
+
+        renderDocumentReview(data);
+        setReviewStatus("Your document review is ready.", "success");
+        reviewResults.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (error) {
+        setReviewStatus(
+            error.name === "AbortError"
+                ? "Document review took too long. Please try again."
+                : "Could not reach the server. Check your connection and try again.",
+            "error"
+        );
+    } finally {
+        window.clearTimeout(timeoutId);
+        isReviewing = false;
+        reviewDocumentBtn.querySelector("span").textContent = "Review document";
+        updateReviewButton();
+    }
+}
+
 function renderResults() {
     const query = resultSearch.value.trim().toLowerCase();
     const selectedCategory = categoryFilter.value;
@@ -386,7 +547,7 @@ function organizeFiles() {
             return;
         }
 
-        if (!Array.isArray(data.files) || typeof data.total !== "number") {
+        if (!Array.isArray(data.files) || typeof data.total !== "number" || typeof data.download_url !== "string") {
             setStatus("The server response is missing file details. Please try again.", "error");
             finishOrganization();
             return;
@@ -402,6 +563,9 @@ function organizeFiles() {
         const breakdown = categoryCounts.length ? ` · ${categoryCounts.join(", ")}` : "";
         document.getElementById("resultSummary").textContent =
             `${data.total} ${data.total === 1 ? "file" : "files"} organized successfully${breakdown}.`;
+        downloadZipBtn.href = data.download_url;
+        downloadZipBtn.hidden = false;
+        downloadExpiry.hidden = false;
         categoryFilter.value = "all";
         resultSearch.value = "";
         renderResults();
@@ -491,6 +655,11 @@ document.getElementById("copySummaryBtn").addEventListener("click", async () => 
     }
 });
 
+downloadZipBtn.addEventListener("click", () => {
+    downloadZipBtn.hidden = true;
+    downloadExpiry.hidden = true;
+});
+
 aiFileInput.addEventListener("change", event => selectAIFile(event.target.files[0]));
 aiInstruction.addEventListener("input", () => {
     aiPromptCount.textContent = `${aiInstruction.value.length.toLocaleString()} / 4,000`;
@@ -500,3 +669,6 @@ aiInstruction.addEventListener("input", () => {
 });
 aiConsent.addEventListener("change", updateAIButton);
 aiEditBtn.addEventListener("click", editDocumentWithAI);
+reviewFileInput.addEventListener("change", event => selectReviewFile(event.target.files[0]));
+reviewConsent.addEventListener("change", updateReviewButton);
+reviewDocumentBtn.addEventListener("click", reviewDocument);

@@ -144,6 +144,11 @@ h1, h2, h3, p { margin-top: 0; }
 .results-panel { margin-top: 20px; padding: 24px 26px 15px; animation: rise-in .4s ease both; scroll-margin-top: 20px; }
 .results-topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
 .results-topline h2 { font-size: 19px; margin-bottom: 4px; }
+.result-actions { display: flex; align-items: flex-start; gap: 8px; }
+.download-action { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.secondary-button.download-zip-button { color: #7052d3; border-color: #e4ddf8; background: #faf8ff; text-decoration: none; white-space: nowrap; }
+.secondary-button.download-zip-button:hover { border-color: #cfc2f5; background: #f3efff; }
+.download-expiry { color: #aaa8b6; font-size: 8px; }
 .secondary-button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; padding: 8px 10px; color: #706a88; border: 1px solid #e8e6ef; border-radius: 7px; background: #fff; font-size: 10px; font-weight: 600; cursor: pointer; transition: background .18s, border .18s; }
 .secondary-button:hover { border-color: #d8d0f0; background: #faf8ff; }
 .secondary-button svg { width: 14px; height: 14px; color: #8062dc; }
@@ -202,6 +207,35 @@ h1, h2, h3, p { margin-top: 0; }
 .ai-download-button:hover { border-color: #b9ddcf; background: #effaf5; }
 .ai-edit-note { margin: 14px 0 0; color: #aaa8b6; font-size: 9px; line-height: 1.6; }
 
+.ai-review-panel { margin-top: 20px; padding: 25px 26px 22px; border-color: #dfece8; background: linear-gradient(125deg, #fff 18%, #f8fdfb 100%); animation: rise-in .55s .08s both; }
+.ai-review-panel .step-label > span { color: #30a887; }
+.ai-review-panel .ai-provider-badge { color: #348a74; border-color: #d9eee6; background: #eff9f5; }
+.review-controls { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, .9fr); align-items: end; gap: 18px; margin-top: 21px; }
+.review-file-control { min-width: 0; }
+.review-action { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.review-disclaimer { max-width: 270px; margin: 0; color: #929a9a; font-size: 9px; line-height: 1.6; }
+.review-action .primary-button { flex: 0 0 auto; }
+.review-consent { max-width: 760px; margin-top: 14px; }
+.review-consent input { accent-color: #36a989; }
+.review-status { min-height: 16px; margin-top: 9px; color: #7e8d88; font-size: 10px; line-height: 1.5; }
+.review-status.error { color: #ce5267; }
+.review-status.success { color: #239975; }
+.review-results { margin-top: 12px; padding: 15px; border: 1px solid #e3eee9; border-radius: 12px; background: rgba(255, 255, 255, .82); animation: reveal .3s ease both; }
+.review-summary { display: flex; align-items: flex-start; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid #edf2ef; }
+.review-summary-icon { width: 27px; height: 27px; display: grid; flex: 0 0 auto; place-items: center; color: #278c70; border-radius: 8px; background: #e7f6ef; }
+.review-summary h3, .review-columns h3 { margin: 0 0 6px; color: #4a665c; font: 700 11px "Manrope", sans-serif; }
+.review-summary p { margin: 0; color: #728078; font-size: 10px; line-height: 1.65; }
+.review-columns { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.5fr); gap: 20px; padding-top: 13px; }
+.review-strengths ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.review-strengths li { position: relative; padding-left: 15px; color: #74857c; font-size: 9px; line-height: 1.55; }
+.review-strengths li::before { position: absolute; left: 0; color: #36a989; content: "✓"; font-weight: 700; }
+.review-suggestions ol { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; counter-reset: review-items; }
+.review-suggestion { position: relative; padding: 9px 10px 9px 35px; border: 1px solid #edf1ed; border-radius: 8px; background: #fff; counter-increment: review-items; transition: border-color .18s, transform .18s, box-shadow .18s; animation: reveal .3s ease both; }
+.review-suggestion::before { position: absolute; top: 9px; left: 10px; width: 17px; height: 17px; display: grid; place-items: center; color: #388a72; border-radius: 6px; background: #eaf7f1; content: counter(review-items); font-size: 9px; font-weight: 700; }
+.review-suggestion:hover { transform: translateY(-1px); border-color: #d7e9e0; box-shadow: 0 5px 13px rgba(49, 111, 86, .06); }
+.review-suggestion h4 { margin: 0 0 3px; color: #56675e; font-size: 10px; }
+.review-suggestion p { margin: 0; color: #8a958e; font-size: 9px; line-height: 1.55; }
+
 .footer { display: flex; justify-content: space-between; gap: 15px; padding: 25px 3px 29px; color: #a3a2af; font-size: 10px; }
 .footer-heart { color: #a187ed; }.footer-year { color: #d1cfdb; }
 .toast { position: fixed; z-index: 5; right: 22px; bottom: 22px; max-width: min(360px, calc(100vw - 32px)); padding: 11px 15px; color: white; border-radius: 9px; background: #302d45; box-shadow: 0 8px 24px rgba(38, 34, 64, .2); font-size: 12px; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .2s, transform .2s; }
@@ -250,9 +284,17 @@ h1, h2, h3, p { margin-top: 0; }
     .category-extension { display: none; }
     .local-callout { margin-top: 12px; }
     .results-panel { padding: 20px 17px 12px; }
+    .results-topline { flex-wrap: wrap; }
+    .result-actions { width: 100%; justify-content: flex-end; }
+    .download-action { align-items: flex-end; }
     .result-list { grid-template-columns: 1fr; }
     .ai-editor-panel { padding: 20px 17px 16px; }
+    .ai-review-panel { padding: 20px 17px 17px; }
     .ai-controls { grid-template-columns: 1fr; gap: 14px; }
+    .review-controls { grid-template-columns: 1fr; gap: 13px; }
+    .review-action { align-items: flex-start; }
+    .review-disclaimer { max-width: none; }
+    .review-columns { grid-template-columns: 1fr; gap: 14px; }
     .ai-submit-row { align-items: stretch; flex-direction: column; gap: 13px; }
     .ai-submit-actions { justify-content: space-between; }
     .ai-status { flex: 1; }
@@ -274,6 +316,7 @@ h1, h2, h3, p { margin-top: 0; }
     .search-box { flex-basis: 100%; }
     .filter-label { margin-left: auto; }
     .ai-heading h2 { font-size: 18px; }
+    .ai-review-panel .ai-heading h2 { font-size: 18px; }
     .ai-provider-badge { padding: 6px 8px; font-size: 8px; }
     .ai-submit-actions { align-items: flex-end; }
     .ai-edit-button { min-width: 132px; }
