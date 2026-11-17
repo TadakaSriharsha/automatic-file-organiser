@@ -46,7 +46,8 @@ FILE_TYPES = {
     "Images": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
     "Documents": [".pdf", ".doc", ".docx", ".txt", ".pptx", ".xlsx"],
     "Videos": [".mp4", ".mkv", ".mov", ".avi"],
-    "Audio": [".mp3", ".wav", ".aac", ".ogg"],
+    "Music": [".mp3", ".wav", ".aac", ".ogg", ".flac", ".m4a"],
+    "Code": [".py", ".js", ".ts", ".html", ".css", ".json", ".java", ".c", ".cpp", ".cs", ".go", ".rs", ".php", ".rb", ".sh", ".sql"],
     "Archives": [".zip", ".rar", ".7z"],
     "Others": []
 }

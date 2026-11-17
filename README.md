@@ -1,6 +1,6 @@
 # Fillo — File Organisor
 
-Fillo sorts uploaded files into categories, reviews PDF/Word/text documents for writing suggestions, and can edit Word document paragraphs with Gemini AI.
+Fillo sorts uploaded files (or files selected from a sample folder in browsers with folder-picker support) into Images, Documents, Videos, Music, Code, Archives, and Others. It returns an organized ZIP download and never moves or changes the originals. The dashboard shows run statistics and recent organization history, including filenames and categories, for the current browser session. Fillo also reviews PDF/Word/text documents for writing suggestions and can edit Word document paragraphs with Gemini AI.
 
 ## Run locally
 

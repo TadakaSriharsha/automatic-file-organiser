@@ -213,14 +213,16 @@ class AIEditRouteTests(unittest.TestCase):
             "/organize",
             data={"files": [
                 (BytesIO(b"image bytes"), "photo.png"),
-                (BytesIO(b"meeting notes"), "notes.txt")
+                (BytesIO(b"meeting notes"), "notes.txt"),
+                (BytesIO(b"music data"), "song.mp3"),
+                (BytesIO(b"python source"), "project.py")
             ]},
             content_type="multipart/form-data"
         )
 
         self.assertEqual(response.status_code, 200)
         payload = response.json
-        self.assertEqual(payload["total"], 2)
+        self.assertEqual(payload["total"], 4)
         self.assertTrue(payload["download_url"].startswith("/download/"))
 
         token = payload["download_url"].rsplit("/", 1)[-1]
@@ -230,7 +232,12 @@ class AIEditRouteTests(unittest.TestCase):
         download = self.client.get(payload["download_url"])
         self.assertEqual(download.status_code, 200)
         with zipfile.ZipFile(BytesIO(download.data)) as archive:
-            self.assertEqual(set(archive.namelist()), {"Images/photo.png", "Documents/notes.txt"})
+            self.assertEqual(set(archive.namelist()), {
+                "Images/photo.png",
+                "Documents/notes.txt",
+                "Music/song.mp3",
+                "Code/project.py"
+            })
             self.assertEqual(archive.read("Documents/notes.txt"), b"meeting notes")
         download.close()
 

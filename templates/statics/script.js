@@ -1,15 +1,17 @@
 const MAX_UPLOAD_SIZE = 20 * 1024 * 1024;
 const MAX_FILES_PER_UPLOAD = 100;
-const FILE_CATEGORIES = ["Images", "Documents", "Videos", "Audio", "Archives", "Others"];
+const FILE_CATEGORIES = ["Images", "Documents", "Videos", "Music", "Code", "Archives", "Others"];
 const CATEGORY_LABELS = {
     Images: ["image", "images"],
     Documents: ["document", "documents"],
     Videos: ["video", "videos"],
-    Audio: ["audio file", "audio files"],
+    Music: ["music file", "music files"],
+    Code: ["code file", "code files"],
     Archives: ["archive", "archives"],
     Others: ["other file", "other files"]
 };
 const fileInput = document.getElementById("fileInput");
+const folderInput = document.getElementById("folderInput");
 const dropZone = document.getElementById("dropZone");
 const fileCount = document.getElementById("queueCount");
 const queueSection = document.getElementById("queueSection");
@@ -56,6 +58,7 @@ const reviewSuggestions = document.getElementById("reviewSuggestions");
 
 let queuedFiles = [];
 let organizedFiles = [];
+let organizationHistory = [];
 let toastTimer;
 let isUploading = false;
 let selectedAiFile = null;
@@ -73,9 +76,10 @@ function formatBytes(bytes) {
 function getFileStyle(filename) {
     const extension = filename.split(".").pop().toLowerCase();
     if (["jpg", "jpeg", "png", "gif", "webp"].includes(extension)) return { icon: "▧", className: "image" };
-    if (["mp3", "wav", "aac", "ogg"].includes(extension)) return { icon: "♫", className: "audio" };
+    if (["mp3", "wav", "aac", "ogg", "flac", "m4a"].includes(extension)) return { icon: "♫", className: "audio" };
     if (["mp4", "mkv", "mov", "avi"].includes(extension)) return { icon: "▶", className: "video" };
     if (["zip", "rar", "7z"].includes(extension)) return { icon: "▦", className: "archive" };
+    if (["py", "js", "ts", "html", "css", "json", "java", "c", "cpp", "cs", "go", "rs", "php", "rb", "sh", "sql"].includes(extension)) return { icon: "</>", className: "code" };
     return { icon: "▤", className: "" };
 }
 
@@ -503,12 +507,50 @@ function renderResults() {
     emptySearch.hidden = matchingFiles.length > 0;
 }
 
+function renderOrganizationHistory() {
+    const historyList = document.getElementById("historyList");
+    historyList.replaceChildren();
+    organizationHistory.forEach((run, index) => {
+        const item = document.createElement("li");
+        const details = document.createElement("details");
+        details.className = "history-run";
+        const summary = document.createElement("summary");
+        const runInfo = document.createElement("div");
+        runInfo.className = "history-details";
+        const title = document.createElement("strong");
+        title.textContent = `Run ${organizationHistory.length - index} · ${run.total} ${run.total === 1 ? "file" : "files"} organized`;
+        const meta = document.createElement("span");
+        meta.textContent = `${run.categoryCount} ${run.categoryCount === 1 ? "category" : "categories"} · ${run.size} · ${run.date}`;
+        runInfo.append(title, meta);
+        const badge = document.createElement("span");
+        badge.className = "history-badge";
+        badge.textContent = "ZIP ready";
+        summary.append(runInfo, badge);
+        const fileList = document.createElement("ul");
+        fileList.className = "history-files";
+        run.files.forEach(file => {
+            const fileItem = document.createElement("li");
+            const filename = document.createElement("span");
+            filename.textContent = file.filename;
+            const category = document.createElement("span");
+            category.className = "history-file-category";
+            category.textContent = file.category;
+            fileItem.append(filename, category);
+            fileList.appendChild(fileItem);
+        });
+        details.append(summary, fileList);
+        item.appendChild(details);
+        historyList.appendChild(item);
+    });
+}
+
 function organizeFiles() {
     if (!queuedFiles.length) {
         setStatus("Add at least one file to get started.", "error");
         return;
     }
 
+    const uploadSize = queuedFiles.reduce((sum, file) => sum + file.size, 0);
     const formData = new FormData();
     queuedFiles.forEach(file => formData.append("files", file));
 
@@ -561,8 +603,21 @@ function organizeFiles() {
             })
             .filter(Boolean);
         const breakdown = categoryCounts.length ? ` · ${categoryCounts.join(", ")}` : "";
+        const categoryCount = new Set(organizedFiles.map(file => file.category)).size;
         document.getElementById("resultSummary").textContent =
             `${data.total} ${data.total === 1 ? "file" : "files"} organized successfully${breakdown}.`;
+        document.getElementById("statFileCount").textContent = data.total.toLocaleString();
+        document.getElementById("statCategoryCount").textContent = categoryCount.toLocaleString();
+        document.getElementById("statUploadSize").textContent = formatBytes(uploadSize);
+        organizationHistory.unshift({
+            total: data.total,
+            categoryCount,
+            size: formatBytes(uploadSize),
+            date: new Date().toLocaleString(),
+            files: organizedFiles.map(file => ({ filename: file.filename, category: file.category }))
+        });
+        organizationHistory = organizationHistory.slice(0, 5);
+        renderOrganizationHistory();
         downloadZipBtn.href = data.download_url;
         downloadZipBtn.hidden = false;
         downloadExpiry.hidden = false;
@@ -609,16 +664,14 @@ fileInput.addEventListener("change", event => {
     addFiles(event.target.files);
     fileInput.value = "";
 });
+folderInput.addEventListener("change", event => {
+    addFiles(event.target.files);
+    folderInput.value = "";
+});
 
 dropZone.addEventListener("click", event => {
     if (event.target.closest(".browse-link")) return;
     fileInput.click();
-});
-dropZone.addEventListener("keydown", event => {
-    if (event.target === dropZone && (event.key === "Enter" || event.key === " ")) {
-        event.preventDefault();
-        fileInput.click();
-    }
 });
 ["dragenter", "dragover"].forEach(eventName => {
     dropZone.addEventListener(eventName, event => {
