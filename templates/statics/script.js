@@ -556,6 +556,7 @@ function organizeFiles() {
 
     isUploading = true;
     fileInput.disabled = true;
+    folderInput.disabled = true;
     updateQueue();
     organizeBtn.querySelector("span").textContent = "Organizing…";
     setStatus("");
@@ -632,6 +633,7 @@ function organizeFiles() {
         queuedFiles = [];
         updateQueue();
         fileInput.value = "";
+        folderInput.value = "";
         resultsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
         finishOrganization(true);
     });
@@ -650,6 +652,7 @@ function organizeFiles() {
 function finishOrganization(success = false) {
     isUploading = false;
     fileInput.disabled = false;
+    folderInput.disabled = false;
     organizeBtn.querySelector("span").textContent = "Organize files";
     updateQueue();
     if (!success) {

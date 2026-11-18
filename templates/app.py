@@ -233,7 +233,7 @@ def ai_edit_document():
 
     try:
         document = Document(uploaded_file.stream)
-    except (BadZipFile, PackageNotFoundError, KeyError):
+    except (BadZipFile, PackageNotFoundError, KeyError, OSError, ValueError):
         return jsonify({"error": "This file is not a readable Word document."}), 400
 
     paragraphs = document.paragraphs
@@ -281,7 +281,7 @@ def ai_edit_document():
             }
         }
     }
-    model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
     api_request = URLRequest(
         f"https://generativelanguage.googleapis.com/v1beta/models/{quote(model, safe='-._')}:generateContent",
         data=json.dumps(request_body, ensure_ascii=False).encode("utf-8"),
@@ -398,7 +398,7 @@ def review_document_with_ai():
                 for row in table.rows
             ]
             document_text = "\n".join(paragraphs + table_rows)
-        except (BadZipFile, PackageNotFoundError, KeyError, ValueError):
+        except (BadZipFile, PackageNotFoundError, KeyError, OSError, ValueError):
             return jsonify({"error": "This file is not a readable Word document."}), 400
     else:
         try:
@@ -452,7 +452,7 @@ def review_document_with_ai():
             }
         }
     }
-    model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
     api_request = URLRequest(
         f"https://generativelanguage.googleapis.com/v1beta/models/{quote(model, safe='-._')}:generateContent",
         data=json.dumps(request_body, ensure_ascii=False).encode("utf-8"),
