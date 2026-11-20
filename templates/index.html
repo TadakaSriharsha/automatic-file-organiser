@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f6f7fb">
-    <meta name="description" content="Fillo is a simple, secure way to organize your files and edit Word documents with AI.">
+    <meta name="description" content="Fillo organizes your files into tidy folders, finds exact duplicates, and creates a downloadable ZIP.">
     <title>Fillo — File Organisor</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +20,7 @@
                 </span>
                 <span>Fillo<span class="brand-dot">.</span></span>
             </a>
-            <div class="privacy-note"><span class="online-dot"></span> Your originals stay untouched <span class="privacy-divider"></span> AI features require your consent</div>
+            <div class="privacy-note"><span class="online-dot"></span> Your originals stay untouched <span class="privacy-divider"></span> No AI or external APIs</div>
         </header>
 
         <main>
@@ -95,6 +95,10 @@
                     </div>
 
                     <div class="upload-actions">
+                        <label class="duplicate-option" for="skipDuplicates">
+                            <input id="skipDuplicates" type="checkbox">
+                            <span>Skip exact duplicate files</span>
+                        </label>
                         <div class="status-message" id="status" role="status" aria-live="polite"></div>
                         <button id="organizeBtn" class="primary-button" type="button" disabled>
                             <span>Organize files</span>
@@ -241,11 +245,14 @@
                     <article class="stat-card"><span class="stat-label">FILES ORGANIZED</span><strong id="statFileCount">0</strong><span>in this run</span></article>
                     <article class="stat-card"><span class="stat-label">FOLDERS CREATED</span><strong id="statCategoryCount">0</strong><span>file categories</span></article>
                     <article class="stat-card"><span class="stat-label">UPLOAD SIZE</span><strong id="statUploadSize">0 B</strong><span>originals stay untouched</span></article>
+                    <article class="stat-card"><span class="stat-label">DUPLICATES FOUND</span><strong id="statDuplicateCount">0</strong><span id="statDuplicateNote">exact matches</span></article>
                 </div>
                 <div class="result-tools">
                     <label class="search-box"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.8" stroke="currentColor" stroke-width="1.5"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><input id="resultSearch" type="search" placeholder="Find a file…" aria-label="Search organized files"></label>
                     <label class="filter-label" for="categoryFilter">Category</label>
                     <select id="categoryFilter" class="category-filter" aria-label="Filter by category"><option value="all">All categories</option><option>Images</option><option>Documents</option><option>Videos</option><option>Music</option><option>Code</option><option>Archives</option><option>Others</option></select>
+                    <label class="filter-label" for="resultSort">Sort</label>
+                    <select id="resultSort" class="category-filter" aria-label="Sort organized files"><option value="name">Name</option><option value="category">Category</option><option value="size-desc">Largest</option><option value="size-asc">Smallest</option></select>
                 </div>
                 <div class="result-list" id="results" aria-live="polite"></div>
                 <p class="empty-search" id="emptySearch" hidden>No files match your search. Try another name or category.</p>
