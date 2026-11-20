@@ -6,9 +6,6 @@
     <meta name="theme-color" content="#f6f7fb">
     <meta name="description" content="Fillo organizes your files into tidy folders, finds exact duplicates, and creates a downloadable ZIP.">
     <title>Fillo — File Organisor</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -127,105 +124,6 @@
                 </aside>
             </section>
 
-            <section class="ai-review-panel panel" id="aiReview" aria-labelledby="aiReviewTitle">
-                <div class="ai-heading">
-                    <div>
-                        <span class="step-label"><span>✦</span> DOCUMENT FEEDBACK</span>
-                        <h2 id="aiReviewTitle">Get thoughtful suggestions</h2>
-                        <p>Upload a PDF, Word, or text file for practical ideas to improve its clarity, structure, and writing.</p>
-                    </div>
-                    <span class="ai-provider-badge"><span>✦</span> AI REVIEW</span>
-                </div>
-                <div class="review-controls">
-                    <div class="review-file-control">
-                        <label class="ai-field-label" for="reviewFileInput">Choose a document <span>.pdf, .docx, or .txt · up to 20 MB</span></label>
-                        <div class="ai-file-picker">
-                            <input id="reviewFileInput" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
-                            <label for="reviewFileInput" class="ai-file-button">Choose document</label>
-                            <span class="ai-file-name" id="reviewFileName">No document selected</span>
-                        </div>
-                    </div>
-                    <div class="review-action">
-                        <p class="review-disclaimer">Suggestions focus on the writing. AI does not fact-check or search the web, and scanned PDFs need OCR first.</p>
-                        <button id="reviewDocumentBtn" class="primary-button" type="button" disabled>
-                            <span>Review document</span>
-                            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 1.8 5.2L17 9l-5.2 1.8L10 16l-1.8-5.2L3 9l5.2-1.8L10 2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="m16 13 .9 2.1L19 16l-2.1.9L16 19l-.9-2.1L13 16l2.1-.9L16 13Z" fill="currentColor"/></svg>
-                        </button>
-                    </div>
-                </div>
-                <label class="ai-consent review-consent" for="reviewConsent">
-                    <input id="reviewConsent" type="checkbox">
-                    <span>I agree to send the extracted document text to Google Gemini for review. Check Google’s data terms before sending sensitive content.</span>
-                </label>
-                <div class="review-status" id="reviewStatus" role="status" aria-live="polite"></div>
-                <section class="review-results" id="reviewResults" aria-label="Document review" aria-live="polite" hidden>
-                    <div class="review-summary">
-                        <span class="review-summary-icon" aria-hidden="true">✦</span>
-                        <div><h3>Overall impression</h3><p id="reviewSummary"></p></div>
-                    </div>
-                    <div class="review-columns">
-                        <div class="review-strengths" id="reviewStrengthsWrap" hidden>
-                            <h3>What’s working</h3>
-                            <ul id="reviewStrengths"></ul>
-                        </div>
-                        <div class="review-suggestions">
-                            <h3>Ideas to consider</h3>
-                            <ol id="reviewSuggestions"></ol>
-                        </div>
-                    </div>
-                </section>
-            </section>
-
-            <section class="ai-editor-panel panel" id="aiEditor" aria-labelledby="aiEditorTitle">
-                <div class="ai-heading">
-                    <div>
-                        <span class="step-label"><span>✦</span> AI STUDIO</span>
-                        <h2 id="aiEditorTitle">Give your Word doc a smart edit</h2>
-                        <p>Describe the changes you want. Gemini will create an edited copy and leave your original alone.</p>
-                    </div>
-                    <span class="ai-provider-badge"><span>✦</span> GEMINI</span>
-                </div>
-                <div class="ai-editor-body">
-                    <div class="ai-controls">
-                        <div class="ai-file-control">
-                            <label class="ai-field-label" for="aiFileInput">Word document <span>.docx · up to 20 MB</span></label>
-                            <div class="ai-file-picker">
-                                <input id="aiFileInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-                                <label for="aiFileInput" class="ai-file-button">Choose document</label>
-                                <span class="ai-file-name" id="aiFileName">No document selected</span>
-                            </div>
-                        </div>
-                        <div class="ai-instruction-control">
-                            <label class="ai-field-label" for="aiInstruction">What should Gemini change?</label>
-                            <textarea id="aiInstruction" maxlength="4000" rows="4" placeholder="For example: Make the tone more concise and professional, while keeping all key facts."></textarea>
-                            <div class="ai-prompt-meta"><span>Be specific for the best result.</span><span id="aiPromptCount">0 / 4,000</span></div>
-                        </div>
-                    </div>
-                    <div class="ai-submit-row">
-                        <label class="ai-consent" for="aiConsent">
-                            <input id="aiConsent" type="checkbox">
-                            <span>I agree to send this document’s paragraph text to Google Gemini for editing. Tables, headers, footers, and images are left unchanged. Check Google’s data terms before sending sensitive content.</span>
-                        </label>
-                        <div class="ai-submit-actions">
-                            <div class="ai-status" id="aiStatus" role="status" aria-live="polite"></div>
-                            <button id="aiEditBtn" class="primary-button ai-edit-button" type="button" disabled>
-                                <span>Edit with AI</span>
-                                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 1.8 5.2L17 9l-5.2 1.8L10 16l-1.8-5.2L3 9l5.2-1.8L10 2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="m16 13 .9 2.1L19 16l-2.1.9L16 19l-.9-2.1L13 16l2.1-.9L16 13Z" fill="currentColor"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="ai-progress" id="aiProgress" hidden aria-live="polite">
-                        <div class="progress-label"><span id="aiProgressText">Sending your document…</span><span id="aiProgressPercent">0%</span></div>
-                        <div class="progress-track"><div class="progress-fill ai-progress-fill" id="aiProgressFill"></div></div>
-                    </div>
-                    <div class="ai-download" id="aiDownload" hidden>
-                        <span class="ai-download-icon" aria-hidden="true">✓</span>
-                        <div><strong>Your edited copy is ready</strong><p>The original document was not changed.</p></div>
-                        <a class="secondary-button ai-download-button" id="aiDownloadLink" href="#" download>Download edited copy</a>
-                    </div>
-                    <p class="ai-edit-note">Only regular paragraph text is edited. Paragraph-level styles are retained; inline formatting may be simplified in edited paragraphs.</p>
-                </div>
-            </section>
 
             <section class="results-panel panel" id="resultsPanel" hidden>
                 <div class="results-topline">

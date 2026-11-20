@@ -113,10 +113,9 @@ def organize_files():
                 continue
 
             content = file.read()
-            digest = hashlib.sha256(content).digest() if skip_duplicates else None
-            duplicate = digest in seen_content if digest is not None else False
-            if digest is not None:
-                seen_content.add(digest)
+            digest = hashlib.sha256(content).digest()
+            duplicate = digest in seen_content
+            seen_content.add(digest)
 
             category = get_category(filename)
             destination = unique_path(organized_root / category, filename)

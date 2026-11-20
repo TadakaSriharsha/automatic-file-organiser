@@ -27,45 +27,20 @@ const progressText = document.getElementById("progressText");
 const progressPercent = document.getElementById("progressPercent");
 const resultSearch = document.getElementById("resultSearch");
 const categoryFilter = document.getElementById("categoryFilter");
+const resultSort = document.getElementById("resultSort");
 const emptySearch = document.getElementById("emptySearch");
 const toast = document.getElementById("toast");
 const clearQueueBtn = document.getElementById("clearQueueBtn");
 const downloadZipBtn = document.getElementById("downloadZipBtn");
 const downloadExpiry = document.getElementById("downloadExpiry");
-const aiFileInput = document.getElementById("aiFileInput");
-const aiFileName = document.getElementById("aiFileName");
-const aiInstruction = document.getElementById("aiInstruction");
-const aiPromptCount = document.getElementById("aiPromptCount");
-const aiConsent = document.getElementById("aiConsent");
-const aiEditBtn = document.getElementById("aiEditBtn");
-const aiStatus = document.getElementById("aiStatus");
-const aiProgress = document.getElementById("aiProgress");
-const aiProgressText = document.getElementById("aiProgressText");
-const aiProgressPercent = document.getElementById("aiProgressPercent");
-const aiProgressFill = document.getElementById("aiProgressFill");
-const aiDownload = document.getElementById("aiDownload");
-const aiDownloadLink = document.getElementById("aiDownloadLink");
-const reviewFileInput = document.getElementById("reviewFileInput");
-const reviewFileName = document.getElementById("reviewFileName");
-const reviewConsent = document.getElementById("reviewConsent");
-const reviewDocumentBtn = document.getElementById("reviewDocumentBtn");
-const reviewStatus = document.getElementById("reviewStatus");
-const reviewResults = document.getElementById("reviewResults");
-const reviewSummary = document.getElementById("reviewSummary");
-const reviewStrengthsWrap = document.getElementById("reviewStrengthsWrap");
-const reviewStrengths = document.getElementById("reviewStrengths");
-const reviewSuggestions = document.getElementById("reviewSuggestions");
+const skipDuplicates = document.getElementById("skipDuplicates");
 
 let queuedFiles = [];
 let organizedFiles = [];
 let organizationHistory = [];
 let toastTimer;
 let isUploading = false;
-let selectedAiFile = null;
-let isAiEditing = false;
-let aiOutputUrl = null;
-let selectedReviewFile = null;
-let isReviewing = false;
+let duplicatesSkipped = false;
 
 function formatBytes(bytes) {
     if (bytes < 1024) return `${bytes} B`;
@@ -75,11 +50,11 @@ function formatBytes(bytes) {
 
 function getFileStyle(filename) {
     const extension = filename.split(".").pop().toLowerCase();
-    if (["jpg", "jpeg", "png", "gif", "webp"].includes(extension)) return { icon: "▧", className: "image" };
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "tif", "tiff", "heic"].includes(extension)) return { icon: "▧", className: "image" };
     if (["mp3", "wav", "aac", "ogg", "flac", "m4a"].includes(extension)) return { icon: "♫", className: "audio" };
-    if (["mp4", "mkv", "mov", "avi"].includes(extension)) return { icon: "▶", className: "video" };
-    if (["zip", "rar", "7z"].includes(extension)) return { icon: "▦", className: "archive" };
-    if (["py", "js", "ts", "html", "css", "json", "java", "c", "cpp", "cs", "go", "rs", "php", "rb", "sh", "sql"].includes(extension)) return { icon: "</>", className: "code" };
+    if (["mp4", "mkv", "mov", "avi", "webm"].includes(extension)) return { icon: "▶", className: "video" };
+    if (["zip", "rar", "7z", "tar", "gz"].includes(extension)) return { icon: "▦", className: "archive" };
+    if (["py", "js", "ts", "html", "css", "json", "java", "c", "cpp", "cs", "go", "rs", "php", "rb", "sh", "sql", "xml", "yaml", "yml", "toml"].includes(extension)) return { icon: "</>", className: "code" };
     return { icon: "▤", className: "" };
 }
 
@@ -182,288 +157,6 @@ function showToast(message) {
     toastTimer = window.setTimeout(() => toast.classList.remove("show"), 2600);
 }
 
-function setAIStatus(message, kind = "") {
-    aiStatus.textContent = message;
-    aiStatus.className = `ai-status${kind ? ` ${kind}` : ""}`;
-}
-
-function clearAIOutput() {
-    if (aiOutputUrl) {
-        URL.revokeObjectURL(aiOutputUrl);
-        aiOutputUrl = null;
-    }
-    aiDownload.hidden = true;
-    aiDownloadLink.removeAttribute("href");
-    aiProgress.hidden = true;
-    aiProgressFill.style.width = "0%";
-    aiProgressFill.classList.remove("is-working");
-}
-
-function updateAIButton() {
-    aiEditBtn.disabled = isAiEditing || !selectedAiFile || !aiInstruction.value.trim() || !aiConsent.checked;
-    aiFileInput.disabled = isAiEditing;
-    aiInstruction.disabled = isAiEditing;
-    aiConsent.disabled = isAiEditing;
-}
-
-function selectAIFile(file) {
-    selectedAiFile = null;
-    clearAIOutput();
-    if (!file) {
-        aiFileName.textContent = "No document selected";
-        setAIStatus("");
-        updateAIButton();
-        return;
-    }
-
-    if (!file.name.toLowerCase().endsWith(".docx")) {
-        aiFileInput.value = "";
-        aiFileName.textContent = "No document selected";
-        setAIStatus("Choose a Word .docx file.", "error");
-        updateAIButton();
-        return;
-    }
-
-    if (file.size > MAX_UPLOAD_SIZE) {
-        aiFileInput.value = "";
-        aiFileName.textContent = "No document selected";
-        setAIStatus("The document exceeds the 20 MB limit.", "error");
-        updateAIButton();
-        return;
-    }
-
-    selectedAiFile = file;
-    aiFileName.textContent = `${file.name} · ${formatBytes(file.size)}`;
-    aiFileName.title = file.name;
-    setAIStatus("");
-    updateAIButton();
-}
-
-function editDocumentWithAI() {
-    if (!selectedAiFile || !aiInstruction.value.trim() || !aiConsent.checked || isAiEditing) return;
-
-    clearAIOutput();
-    setAIStatus("");
-    aiProgress.hidden = false;
-    aiProgressText.textContent = "Sending your document…";
-    aiProgressPercent.textContent = "0%";
-    aiProgressFill.style.width = "0%";
-    aiProgressFill.classList.remove("is-working");
-    isAiEditing = true;
-    aiEditBtn.querySelector("span").textContent = "Working…";
-    updateAIButton();
-
-    const formData = new FormData();
-    formData.append("document", selectedAiFile);
-    formData.append("instruction", aiInstruction.value.trim());
-    formData.append("consent", "true");
-
-    const request = new XMLHttpRequest();
-    request.open("POST", "/ai-edit");
-    request.responseType = "blob";
-    request.upload.addEventListener("progress", event => {
-        if (!event.lengthComputable) return;
-        const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
-        aiProgressFill.style.width = `${percent}%`;
-        aiProgressPercent.textContent = `${percent}%`;
-        if (percent === 100) {
-            aiProgressText.textContent = "Gemini is editing your document…";
-            aiProgressPercent.textContent = "Working";
-            aiProgressFill.classList.add("is-working");
-        }
-    });
-    request.addEventListener("load", async () => {
-        if (request.status < 200 || request.status >= 300) {
-            let message = "AI editing failed. Please try again.";
-            try {
-                const data = JSON.parse(await request.response.text());
-                if (typeof data.error === "string") message = data.error;
-            } catch {
-                message = "The server returned an unreadable error. Please try again.";
-            }
-            setAIStatus(message, "error");
-            finishAIEdit();
-            return;
-        }
-
-        const contentType = request.getResponseHeader("Content-Type") || "";
-        if (!contentType.includes("wordprocessingml.document") || !request.response.size) {
-            setAIStatus("The server did not return an edited Word document.", "error");
-            finishAIEdit();
-            return;
-        }
-
-        aiOutputUrl = URL.createObjectURL(request.response);
-        const outputStem = selectedAiFile.name.replace(/\.docx$/i, "") || "document";
-        aiDownloadLink.href = aiOutputUrl;
-        aiDownloadLink.download = `${outputStem}_edited.docx`;
-        aiDownload.hidden = false;
-        setAIStatus("Your edited copy is ready to download.", "success");
-        aiProgressText.textContent = "Edit complete";
-        aiProgressPercent.textContent = "100%";
-        aiProgressFill.classList.remove("is-working");
-        aiProgressFill.style.width = "100%";
-        finishAIEdit(true);
-    });
-    request.addEventListener("error", () => {
-        setAIStatus("Could not reach the server. Check your connection and try again.", "error");
-        finishAIEdit();
-    });
-    request.addEventListener("timeout", () => {
-        setAIStatus("AI editing took too long. Please try again.", "error");
-        finishAIEdit();
-    });
-    request.timeout = 180000;
-    request.send(formData);
-}
-
-function finishAIEdit(success = false) {
-    isAiEditing = false;
-    aiEditBtn.querySelector("span").textContent = "Edit with AI";
-    updateAIButton();
-    if (!success) {
-        aiProgressFill.classList.remove("is-working");
-        window.setTimeout(() => {
-            aiProgress.hidden = true;
-            aiProgressFill.style.width = "0%";
-        }, 500);
-    }
-}
-
-function setReviewStatus(message, kind = "") {
-    reviewStatus.textContent = message;
-    reviewStatus.className = `review-status${kind ? ` ${kind}` : ""}`;
-}
-
-function updateReviewButton() {
-    reviewDocumentBtn.disabled = isReviewing || !selectedReviewFile || !reviewConsent.checked;
-    reviewFileInput.disabled = isReviewing;
-    reviewConsent.disabled = isReviewing;
-}
-
-function selectReviewFile(file) {
-    selectedReviewFile = null;
-    reviewResults.hidden = true;
-    reviewStrengths.replaceChildren();
-    reviewSuggestions.replaceChildren();
-    if (!file) {
-        reviewFileName.textContent = "No document selected";
-        setReviewStatus("");
-        updateReviewButton();
-        return;
-    }
-
-    if (!/\.(pdf|docx|txt)$/i.test(file.name)) {
-        reviewFileInput.value = "";
-        reviewFileName.textContent = "No document selected";
-        setReviewStatus("Choose a PDF, Word .docx, or text .txt file.", "error");
-        updateReviewButton();
-        return;
-    }
-
-    if (file.size > MAX_UPLOAD_SIZE) {
-        reviewFileInput.value = "";
-        reviewFileName.textContent = "No document selected";
-        setReviewStatus("The document exceeds the 20 MB limit.", "error");
-        updateReviewButton();
-        return;
-    }
-
-    selectedReviewFile = file;
-    reviewFileName.textContent = `${file.name} · ${formatBytes(file.size)}`;
-    reviewFileName.title = file.name;
-    setReviewStatus("");
-    updateReviewButton();
-}
-
-function renderDocumentReview(review) {
-    reviewSummary.textContent = review.summary;
-    reviewStrengths.replaceChildren();
-    review.suggestions.forEach((suggestion, index) => {
-        const item = document.createElement("li");
-        item.className = "review-suggestion";
-        item.style.animationDelay = `${Math.min(index * 45, 225)}ms`;
-
-        const title = document.createElement("h4");
-        title.textContent = suggestion.title;
-        const detail = document.createElement("p");
-        detail.textContent = suggestion.detail;
-        item.append(title, detail);
-        reviewSuggestions.appendChild(item);
-    });
-
-    review.strengths.forEach(strength => {
-        const item = document.createElement("li");
-        item.textContent = strength;
-        reviewStrengths.appendChild(item);
-    });
-    reviewStrengthsWrap.hidden = review.strengths.length === 0;
-    reviewResults.hidden = false;
-}
-
-async function reviewDocument() {
-    if (!selectedReviewFile || !reviewConsent.checked || isReviewing) return;
-
-    isReviewing = true;
-    reviewResults.hidden = true;
-    setReviewStatus("Reading your document and preparing suggestions…");
-    reviewDocumentBtn.querySelector("span").textContent = "Reviewing…";
-    updateReviewButton();
-
-    const formData = new FormData();
-    formData.append("document", selectedReviewFile);
-    formData.append("consent", "true");
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 105000);
-
-    try {
-        const response = await fetch("/ai-review", {
-            method: "POST",
-            body: formData,
-            signal: controller.signal
-        });
-        let data;
-        try {
-            data = await response.json();
-        } catch {
-            setReviewStatus("The server returned an unreadable response. Please try again.", "error");
-            return;
-        }
-
-        if (!response.ok) {
-            setReviewStatus(data.error || "Document review failed. Please try again.", "error");
-            return;
-        }
-
-        if (
-            typeof data.summary !== "string"
-            || !Array.isArray(data.strengths)
-            || !data.strengths.every(item => typeof item === "string")
-            || !Array.isArray(data.suggestions)
-            || !data.suggestions.every(item => item && typeof item.title === "string" && typeof item.detail === "string")
-        ) {
-            setReviewStatus("The server returned incomplete review details. Please try again.", "error");
-            return;
-        }
-
-        renderDocumentReview(data);
-        setReviewStatus("Your document review is ready.", "success");
-        reviewResults.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    } catch (error) {
-        setReviewStatus(
-            error.name === "AbortError"
-                ? "Document review took too long. Please try again."
-                : "Could not reach the server. Check your connection and try again.",
-            "error"
-        );
-    } finally {
-        window.clearTimeout(timeoutId);
-        isReviewing = false;
-        reviewDocumentBtn.querySelector("span").textContent = "Review document";
-        updateReviewButton();
-    }
-}
-
 function renderResults() {
     const query = resultSearch.value.trim().toLowerCase();
     const selectedCategory = categoryFilter.value;
@@ -471,6 +164,13 @@ function renderResults() {
         const matchesName = file.filename.toLowerCase().includes(query);
         const matchesCategory = selectedCategory === "all" || file.category === selectedCategory;
         return matchesName && matchesCategory;
+    });
+    const sortMode = resultSort.value;
+    matchingFiles.sort((first, second) => {
+        if (sortMode === "size-desc") return second.size - first.size || first.filename.localeCompare(second.filename);
+        if (sortMode === "size-asc") return first.size - second.size || first.filename.localeCompare(second.filename);
+        if (sortMode === "category") return first.category.localeCompare(second.category) || first.filename.localeCompare(second.filename);
+        return first.filename.localeCompare(second.filename);
     });
 
     results.replaceChildren();
@@ -494,7 +194,12 @@ function renderResults() {
         const category = document.createElement("span");
         category.className = "result-category";
         category.textContent = file.category;
-        info.append(name, category);
+        const meta = document.createElement("span");
+        meta.className = "result-meta";
+        meta.textContent = file.duplicate && duplicatesSkipped
+            ? `${formatBytes(file.size)} · duplicate, not included`
+            : `${formatBytes(file.size)}${file.duplicate ? " · duplicate copy" : ""}`;
+        info.append(name, category, meta);
 
         const arrow = document.createElement("span");
         arrow.className = "result-arrow";
@@ -552,7 +257,9 @@ function organizeFiles() {
 
     const uploadSize = queuedFiles.reduce((sum, file) => sum + file.size, 0);
     const formData = new FormData();
+    const removeDuplicates = skipDuplicates.checked;
     queuedFiles.forEach(file => formData.append("files", file));
+    formData.append("skip_duplicates", String(removeDuplicates));
 
     isUploading = true;
     fileInput.disabled = true;
@@ -590,28 +297,45 @@ function organizeFiles() {
             return;
         }
 
-        if (!Array.isArray(data.files) || typeof data.total !== "number" || typeof data.download_url !== "string") {
+        if (
+            !Array.isArray(data.files)
+            || typeof data.total !== "number"
+            || typeof data.included !== "number"
+            || typeof data.duplicates !== "number"
+            || typeof data.download_url !== "string"
+        ) {
             setStatus("The server response is missing file details. Please try again.", "error");
             finishOrganization();
             return;
         }
 
         organizedFiles = data.files;
+        duplicatesSkipped = data.skip_duplicates === true;
+        const includedFiles = organizedFiles.filter(file => !data.skip_duplicates || !file.duplicate);
         const categoryCounts = FILE_CATEGORIES
             .map(category => {
-                const count = organizedFiles.filter(file => file.category === category).length;
+                const count = includedFiles.filter(file => file.category === category).length;
                 return count ? `${count} ${CATEGORY_LABELS[category][count === 1 ? 0 : 1]}` : "";
             })
             .filter(Boolean);
         const breakdown = categoryCounts.length ? ` · ${categoryCounts.join(", ")}` : "";
-        const categoryCount = new Set(organizedFiles.map(file => file.category)).size;
+        const categoryCount = new Set(includedFiles.map(file => file.category)).size;
+        const duplicateMessage = data.duplicates
+            ? data.skip_duplicates
+                ? ` ${data.duplicates} exact ${data.duplicates === 1 ? "duplicate was" : "duplicates were"} skipped.`
+                : ` ${data.duplicates} exact ${data.duplicates === 1 ? "duplicate was" : "duplicates were"} found and included.`
+            : "";
         document.getElementById("resultSummary").textContent =
-            `${data.total} ${data.total === 1 ? "file" : "files"} organized successfully${breakdown}.`;
-        document.getElementById("statFileCount").textContent = data.total.toLocaleString();
+            `${data.included} ${data.included === 1 ? "file" : "files"} organized successfully${breakdown}.${duplicateMessage}`;
+        document.getElementById("statFileCount").textContent = data.included.toLocaleString();
         document.getElementById("statCategoryCount").textContent = categoryCount.toLocaleString();
         document.getElementById("statUploadSize").textContent = formatBytes(uploadSize);
+        document.getElementById("statDuplicateCount").textContent = data.duplicates.toLocaleString();
+        document.getElementById("statDuplicateNote").textContent = data.skip_duplicates
+            ? "exact matches skipped"
+            : "exact matches included";
         organizationHistory.unshift({
-            total: data.total,
+            total: data.included,
             categoryCount,
             size: formatBytes(uploadSize),
             date: new Date().toLocaleString(),
@@ -623,6 +347,7 @@ function organizeFiles() {
         downloadZipBtn.hidden = false;
         downloadExpiry.hidden = false;
         categoryFilter.value = "all";
+        resultSort.value = "name";
         resultSearch.value = "";
         renderResults();
         resultsPanel.hidden = false;
@@ -700,9 +425,12 @@ clearQueueBtn.addEventListener("click", () => {
 organizeBtn.addEventListener("click", organizeFiles);
 resultSearch.addEventListener("input", renderResults);
 categoryFilter.addEventListener("change", renderResults);
+resultSort.addEventListener("change", renderResults);
 
 document.getElementById("copySummaryBtn").addEventListener("click", async () => {
-    const summary = organizedFiles.map(file => `${file.filename} → ${file.category}`).join("\n");
+    const summary = organizedFiles.map(file =>
+        `${file.filename} → ${file.category}${file.duplicate && duplicatesSkipped ? " (duplicate, not included)" : ""}`
+    ).join("\n");
     try {
         await navigator.clipboard.writeText(summary);
         showToast("Organization summary copied.");
@@ -716,15 +444,3 @@ downloadZipBtn.addEventListener("click", () => {
     downloadExpiry.hidden = true;
 });
 
-aiFileInput.addEventListener("change", event => selectAIFile(event.target.files[0]));
-aiInstruction.addEventListener("input", () => {
-    aiPromptCount.textContent = `${aiInstruction.value.length.toLocaleString()} / 4,000`;
-    clearAIOutput();
-    setAIStatus("");
-    updateAIButton();
-});
-aiConsent.addEventListener("change", updateAIButton);
-aiEditBtn.addEventListener("click", editDocumentWithAI);
-reviewFileInput.addEventListener("change", event => selectReviewFile(event.target.files[0]));
-reviewConsent.addEventListener("change", updateReviewButton);
-reviewDocumentBtn.addEventListener("click", reviewDocument);
