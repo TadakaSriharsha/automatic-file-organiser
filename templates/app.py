@@ -42,7 +42,7 @@ FILE_TYPES = {
     "Audio": [".mp3", ".wav", ".aac", ".ogg", ".flac", ".m4a"],
     "Code": [".py", ".js", ".ts", ".html", ".css", ".json", ".java", ".c", ".cpp", ".cs", ".go", ".rs", ".php", ".rb", ".sh", ".sql", ".xml", ".yaml", ".yml", ".toml"],
     "Archives": [".zip", ".rar", ".7z", ".tar", ".gz"],
-    "Others": []
+    "Other": []
 }
 
 RISKY_EXTENSIONS = {
@@ -56,7 +56,7 @@ def get_category(filename):
     for category, extensions in FILE_TYPES.items():
         if extension in extensions:
             return category
-    return "Others"
+    return "Other"
 
 
 def unique_path(folder, filename):

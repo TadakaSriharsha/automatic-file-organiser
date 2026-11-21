@@ -3,166 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#f6f7fb">
-    <meta name="description" content="Fillo organizes your files into tidy folders, finds exact duplicates, and creates a downloadable ZIP.">
-    <title>Fillo — File Organisor</title>
+    <meta name="theme-color" content="#0b1020">
+    <meta name="description" content="Smart File Organizer - safely organize, explore, and analyze your files.">
+    <title>FileFlow — Smart File Organizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="page-shell">
-        <header class="topbar">
-            <a class="brand" href="/" aria-label="Fillo home">
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
                 <span class="brand-mark" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5h7l2 2h8v9a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18.5v-11Z" fill="currentColor" opacity=".28"/><path d="M3.5 8.5v-2A1.5 1.5 0 0 1 5 5h5l2 2h7A1.5 1.5 0 0 1 20.5 8.5v10A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M3.5 7.5h6l2 2h8.5v8.5A2.5 2.5 0 0 1 17.5 20h-12A2.5 2.5 0 0 1 3 17.5v-10Z"/><path d="M3.5 8V6.5A2.5 2.5 0 0 1 6 4h4l2 2h5A2.5 2.5 0 0 1 19.5 8.5"/></svg>
                 </span>
-                <span>Fillo<span class="brand-dot">.</span></span>
-            </a>
-            <div class="privacy-note"><span class="online-dot"></span> Your originals stay untouched <span class="privacy-divider"></span> No AI or external APIs</div>
-        </header>
+                <span class="brand-name">File<span>Flow</span></span>
+                <button class="sidebar-collapse" id="sidebarCollapse" type="button" aria-label="Collapse sidebar">‹</button>
+            </div>
 
-        <main>
-            <section class="hero">
-                <div class="hero-copy">
-                    <span class="eyebrow"><span class="sparkle">✦</span> YOUR FILES, FINALLY IN ORDER</span>
-                    <h1>A little less mess.<br><span>A lot more</span> <span class="hero-highlight">organized.</span></h1>
-                    <p>Choose files or a sample folder and let Fillo sort an uploaded copy into tidy categories. Download everything together when it’s ready.</p>
+            <nav class="nav-list" aria-label="Main navigation">
+                <button class="nav-item active" type="button" data-page="dashboard"><span class="nav-icon">⌂</span><span class="nav-label">Dashboard</span></button>
+                <button class="nav-item" type="button" data-page="explorer"><span class="nav-icon">▦</span><span class="nav-label">File Explorer</span></button>
+                <button class="nav-item" type="button" data-page="organize"><span class="nav-icon">↯</span><span class="nav-label">Organize Files</span></button>
+                <button class="nav-item" type="button" data-page="categories"><span class="nav-icon">◫</span><span class="nav-label">Categories</span></button>
+                <button class="nav-item" type="button" data-page="history"><span class="nav-icon">◷</span><span class="nav-label">Activity History</span></button>
+                <button class="nav-item" type="button" data-page="analytics"><span class="nav-icon">⌁</span><span class="nav-label">Analytics</span></button>
+                <button class="nav-item" type="button" data-page="settings"><span class="nav-icon">⚙</span><span class="nav-label">Settings</span></button>
+            </nav>
+
+            <div class="sidebar-status">
+                <span class="status-orb"></span>
+                <div><strong>System ready</strong><small>Local secure storage</small></div>
+            </div>
+        </aside>
+
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-menu" id="mobileMenu" type="button" aria-label="Open navigation">☰</button>
+                    <div>
+                        <span class="topbar-kicker">SMART WORKSPACE</span>
+                        <h1 id="pageTitle">Dashboard</h1>
+                    </div>
                 </div>
-                <div class="hero-art" aria-hidden="true">
-                    <div class="art-orbit orbit-one"></div>
-                    <div class="art-orbit orbit-two"></div>
-                    <div class="floating-file file-purple"><span>▤</span><i>PDF</i></div>
-                    <div class="floating-file file-orange"><span>▧</span><i>IMG</i></div>
-                    <div class="floating-file file-blue"><span>♫</span><i>AUD</i></div>
-                    <div class="art-folder"><span class="folder-tab"></span><span class="folder-shine"></span><span class="folder-check">✓</span></div>
-                    <span class="art-sparkle sparkle-one">✦</span>
-                    <span class="art-sparkle sparkle-two">✧</span>
+                <div class="topbar-actions">
+                    <button class="icon-button" id="themeToggle" type="button" aria-label="Toggle theme">☼</button>
+                    <button class="upload-button" type="button" data-go="organize"><span>＋</span> Upload files</button>
                 </div>
-            </section>
+            </header>
 
-            <section class="workflow-strip" aria-label="How file organizing works">
-                <div class="workflow-step"><span>01</span><strong>Choose files or folder</strong></div>
-                <span class="workflow-arrow" aria-hidden="true">→</span>
-                <div class="workflow-step"><span>02</span><strong>Scan your selection</strong></div>
-                <span class="workflow-arrow" aria-hidden="true">→</span>
-                <div class="workflow-step"><span>03</span><strong>Identify file types</strong></div>
-                <span class="workflow-arrow" aria-hidden="true">→</span>
-                <div class="workflow-step"><span>04</span><strong>Create category folders</strong></div>
-                <span class="workflow-arrow" aria-hidden="true">→</span>
-                <div class="workflow-step"><span>05</span><strong>Download organized ZIP</strong></div>
-            </section>
-
-            <section class="workspace" aria-label="File organizer">
-                <div class="upload-panel panel">
-                    <div class="panel-heading">
+            <div class="page-container">
+                <section class="page active" data-page-panel="dashboard">
+                    <div class="welcome-card">
                         <div>
-                            <span class="step-label"><span>01</span> ADD YOUR FILES</span>
-                            <h2>Start with a drop</h2>
-                            <p>Try a sample folder first. Your original files are never moved or changed.</p>
+                            <span class="eyebrow">WORKSPACE OVERVIEW</span>
+                            <h2>Welcome back</h2>
+                            <p>Keep every file exactly where it belongs.</p>
                         </div>
-                        <span class="limit-pill"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5 3.5 5v4.4c0 3.8 2.7 6.7 6.5 8.1 3.8-1.4 6.5-4.3 6.5-8.1V5L10 2.5Z" stroke="currentColor" stroke-width="1.4"/><path d="m7.5 9.8 1.7 1.7 3.5-3.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> 20 MB · 100 files</span>
+                        <button class="primary-button" type="button" data-go="organize">Quick organize <span>→</span></button>
                     </div>
 
-                    <div class="drop-zone" id="dropZone">
-                        <input type="file" id="fileInput" multiple aria-label="Choose files">
-                        <input type="file" id="folderInput" webkitdirectory directory multiple aria-label="Choose a folder">
-                        <div class="upload-illustration" aria-hidden="true">
-                            <span class="upload-cloud"><svg viewBox="0 0 32 32" fill="none"><path d="M10.3 23.8h12.1a5.6 5.6 0 0 0 .4-11.2A7.4 7.4 0 0 0 8.6 14a5 5 0 0 0 1.7 9.8Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16.3 21v-8m0 0-3 3m3-3 3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                            <span class="upload-orbit orbit-a"></span><span class="upload-orbit orbit-b"></span>
-                        </div>
-                        <h3>Drag files here to get started</h3>
-                        <div class="picker-actions">
-                            <label for="fileInput" class="browse-link">Choose files</label>
-                            <span>or</span>
-                            <label for="folderInput" class="browse-link">Choose a folder</label>
-                        </div>
-                        <div class="drop-formats"><span>PDF</span><span>JPG</span><span>DOCX</span><span>MP3</span><span>+ more</span></div>
+                    <div class="stat-grid">
+                        <article class="stat-card"><span class="stat-icon blue">▣</span><div><small>Total files</small><strong id="statTotal">0</strong></div><span class="stat-trend">Live</span></article>
+                        <article class="stat-card"><span class="stat-icon violet">✓</span><div><small>Organized files</small><strong id="statOrganized">0</strong></div></article>
+                        <article class="stat-card"><span class="stat-icon cyan">◉</span><div><small>Storage used</small><strong id="statStorage">0 B</strong></div></article>
+                        <article class="stat-card"><span class="stat-icon amber">◫</span><div><small>Categories</small><strong id="statCategories">0</strong></div></article>
                     </div>
 
-                    <div class="queue-section" id="queueSection" hidden>
-                        <div class="queue-heading">
-                            <div><h3>Your upload queue <span id="queueCount" class="count-badge">0</span></h3><p id="queueMeta">Ready to organize</p></div>
-                            <button type="button" class="text-button" id="clearQueueBtn">Clear all</button>
-                        </div>
-                        <ul class="file-list" id="fileList" aria-label="Files selected for organization"></ul>
+                    <div class="dashboard-grid">
+                        <section class="card chart-card">
+                            <div class="card-heading"><div><span class="section-kicker">DISTRIBUTION</span><h3>File type distribution</h3></div></div>
+                            <div class="horizontal-bars" id="categoryChart"><p class="muted">No organized files yet.</p></div>
+                        </section>
+                        <section class="card storage-card">
+                            <div class="card-heading"><div><span class="section-kicker">STORAGE</span><h3>Organization status</h3></div></div>
+                            <div class="storage-ring" id="storageRing"><div><strong id="ringValue">0%</strong><small>organized</small></div></div>
+                            <div class="storage-legend" id="storageLegend"></div>
+                        </section>
+                        <section class="card activity-card">
+                            <div class="card-heading"><div><span class="section-kicker">LATEST</span><h3>Recent activity</h3></div><button class="text-button" type="button" data-go="history">View all</button></div>
+                            <div id="recentActivity" class="activity-list"><p class="muted">No organization activity yet.</p></div>
+                        </section>
+                        <section class="card recent-card">
+                            <div class="card-heading"><div><span class="section-kicker">FILES</span><h3>Recently organized</h3></div><button class="text-button" type="button" data-go="explorer">Explore</button></div>
+                            <div id="recentFiles" class="recent-list"><p class="muted">No organized files yet.</p></div>
+                        </section>
                     </div>
-
-                    <div class="upload-progress" id="progressWrap" hidden aria-live="polite">
-                        <div class="progress-label"><span id="progressText">Uploading your files…</span><span id="progressPercent">0%</span></div>
-                        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-                    </div>
-
-                    <div class="upload-actions">
-                        <label class="duplicate-option" for="skipDuplicates">
-                            <input id="skipDuplicates" type="checkbox">
-                            <span>Skip exact duplicate files</span>
-                        </label>
-                        <div class="status-message" id="status" role="status" aria-live="polite"></div>
-                        <button id="organizeBtn" class="primary-button" type="button" disabled>
-                            <span>Organize files</span>
-                            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <aside class="side-column">
-                    <section class="category-panel panel">
-                        <div class="side-heading"><div><span class="step-label"><span>02</span> AUTOMATIC SORTING</span><h2>Every file has a home</h2></div></div>
-                        <div class="category-list">
-                            <div class="category-row"><span class="category-icon icon-images">▧</span><span>Images</span><span class="category-extension">JPG, PNG, GIF</span></div>
-                            <div class="category-row"><span class="category-icon icon-docs">▤</span><span>Documents</span><span class="category-extension">PDF, DOCX</span></div>
-                            <div class="category-row"><span class="category-icon icon-video">▶</span><span>Videos</span><span class="category-extension">MP4, MOV</span></div>
-                            <div class="category-row"><span class="category-icon icon-audio">♫</span><span>Music</span><span class="category-extension">MP3, WAV</span></div>
-                            <div class="category-row"><span class="category-icon icon-code">&lt;/&gt;</span><span>Code</span><span class="category-extension">PY, JS, HTML</span></div>
-                            <div class="category-row"><span class="category-icon icon-archive">▦</span><span>Archives</span><span class="category-extension">ZIP, RAR</span></div>
-                            <div class="category-row"><span class="category-icon icon-other">•••</span><span>Other files</span><span class="category-extension">Everything else</span></div>
-                        </div>
-                        <div class="local-callout">
-                            <span class="callout-lock">✓</span>
-                            <p><strong>Safe sample-folder workflow.</strong><br>Files are uploaded to sort; your originals stay on your device.</p>
-                        </div>
-                    </section>
-                </aside>
-            </section>
-
-
-            <section class="results-panel panel" id="resultsPanel" hidden>
-                <div class="results-topline">
-                <div><span class="step-label"><span>03</span> ALL TIDIED UP</span><h2>Your organized files</h2><p id="resultSummary">Your files are ready.</p></div>
-                <div class="result-actions">
-                    <div class="download-action">
-                        <a class="secondary-button download-zip-button" id="downloadZipBtn" href="#" download="fillo-organized-files.zip" hidden>
-                            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6 2.5h5l4 4v10A1.5 1.5 0 0 1 13.5 18h-7A1.5 1.5 0 0 1 5 16.5v-12A2 2 0 0 1 6 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M11 2.8v4h4m-5.8 3.1h1.6v1.7h-1.6v1.7h1.6m-1.6 1.8h1.6" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-                            <span>Download organized ZIP</span>
-                        </a>
-                        <span class="download-expiry" id="downloadExpiry" hidden>Available for 30 minutes or until downloaded.</span>
-                    </div>
-                    <button class="secondary-button" type="button" id="copySummaryBtn"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="6" width="9" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M12 6V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7" stroke="currentColor" stroke-width="1.4"/></svg><span>Copy summary</span></button>
-                </div>
-                </div>
-                <div class="stats-grid" aria-label="Organization statistics">
-                    <article class="stat-card"><span class="stat-label">FILES ORGANIZED</span><strong id="statFileCount">0</strong><span>in this run</span></article>
-                    <article class="stat-card"><span class="stat-label">FOLDERS CREATED</span><strong id="statCategoryCount">0</strong><span>file categories</span></article>
-                    <article class="stat-card"><span class="stat-label">UPLOAD SIZE</span><strong id="statUploadSize">0 B</strong><span>originals stay untouched</span></article>
-                    <article class="stat-card"><span class="stat-label">DUPLICATES FOUND</span><strong id="statDuplicateCount">0</strong><span id="statDuplicateNote">exact matches</span></article>
-                </div>
-                <div class="result-tools">
-                    <label class="search-box"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.8" stroke="currentColor" stroke-width="1.5"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><input id="resultSearch" type="search" placeholder="Find a file…" aria-label="Search organized files"></label>
-                    <label class="filter-label" for="categoryFilter">Category</label>
-                    <select id="categoryFilter" class="category-filter" aria-label="Filter by category"><option value="all">All categories</option><option>Images</option><option>Documents</option><option>Videos</option><option>Music</option><option>Code</option><option>Archives</option><option>Others</option></select>
-                    <label class="filter-label" for="resultSort">Sort</label>
-                    <select id="resultSort" class="category-filter" aria-label="Sort organized files"><option value="name">Name</option><option value="category">Category</option><option value="size-desc">Largest</option><option value="size-asc">Smallest</option></select>
-                </div>
-                <div class="result-list" id="results" aria-live="polite"></div>
-                <p class="empty-search" id="emptySearch" hidden>No files match your search. Try another name or category.</p>
-                <section class="organization-history" aria-labelledby="historyTitle">
-                    <div class="history-heading"><div><h3 id="historyTitle">Recent organization history</h3><p>Runs from this browser session</p></div></div>
-                    <ul id="historyList" class="history-list"></ul>
                 </section>
-            </section>
-        </main>
 
-        <footer class="footer"><span>Made for a calmer desktop <span class="footer-heart">✦</span></span><span>Fillo <span class="footer-year">·</span> File Organisor</span></footer>
+                <section class="page" data-page-panel="organize">
+                    <div class="organize-layout">
+                        <section class="card upload-card">
+                            <div class="card-heading"><div><span class="section-kicker">NEW SESSION</span><h3>Upload & organize</h3></div><span class="limit-pill">20 MB · 100 files</span></div>
+                            <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="Upload files">
+                                <input id="fileInput" type="file" multiple hidden>
+                                <input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+                                <div class="drop-icon">⇧</div>
+                                <h4>Drop files here</h4>
+                                <p>or <label for="fileInput">browse files</label> · <label for="folderInput">choose folder</label></p>
+                            </div>
+                            <div class="queue-section" id="queueSection" hidden>
+                                <div class="queue-heading"><strong id="queueTitle">Upload queue</strong><button class="text-button" id="clearQueueBtn" type="button">Clear all</button></div>
+                                <div id="fileQueue" class="file-queue"></div>
+                            </div>
+                            <div class="progress-panel" id="progressPanel" hidden><div><span id="progressText">Uploading…</span><strong id="progressPercent">0%</strong></div><div class="progress-track"><span id="progressFill"></span></div></div>
+                            <div class="organize-actions">
+                                <label class="check-option"><input id="skipDuplicates" type="checkbox"> Skip exact duplicates</label>
+                                <button class="primary-button" id="organizeBtn" type="button" disabled>Preview & organize <span>→</span></button>
+                            </div>
+                        </section>
+
+                        <aside class="card preview-card">
+                            <div class="card-heading"><div><span class="section-kicker">PREVIEW</span><h3>Detected categories</h3></div></div>
+                            <div id="categoryPreview" class="category-preview"><p class="muted">Add files to preview their categories.</p></div>
+                            <div class="safety-note"><span>✓</span><div><strong>Safe organization</strong><p>Original filenames are protected. Existing files are never overwritten.</p></div></div>
+                        </aside>
+                    </div>
+                    <section class="card organization-preview" id="organizationPreview" hidden>
+                        <div class="card-heading"><div><span class="section-kicker">READY TO APPLY</span><h3>Organization preview</h3></div><span id="previewSummary"></span></div>
+                        <div id="previewFiles" class="preview-files"></div>
+                        <div class="preview-actions"><button class="secondary-button" id="cancelPreviewBtn" type="button">Cancel</button><button class="primary-button" id="applyOrganizationBtn" type="button">Apply organization</button></div>
+                    </section>
+                </section>
+
+                <section class="page" data-page-panel="explorer">
+                    <div class="explorer-toolbar card">
+                        <label class="search-box">⌕ <input id="explorerSearch" type="search" placeholder="Search files"></label>
+                        <select id="explorerCategory" aria-label="Filter category"><option value="all">All categories</option></select>
+                        <select id="explorerSort" aria-label="Sort files"><option value="date-desc">Newest</option><option value="name">Name</option><option value="size-desc">Largest</option><option value="size-asc">Smallest</option></select>
+                        <div class="view-toggle" aria-label="View options"><button id="gridViewBtn" class="active" type="button" title="Grid view">▦</button><button id="listViewBtn" type="button" title="List view">☷</button></div>
+                    </div>
+                    <div class="card explorer-card"><div id="fileExplorer" class="file-grid"></div></div>
+                </section>
+
+                <section class="page" data-page-panel="categories">
+                    <div class="card categories-card">
+                        <div class="card-heading"><div><span class="section-kicker">LIBRARY</span><h3>File categories</h3></div></div>
+                        <div id="categoryCards" class="category-cards"></div>
+                    </div>
+                </section>
+
+                <section class="page" data-page-panel="history">
+                    <div class="card">
+                        <div class="card-heading"><div><span class="section-kicker">AUDIT LOG</span><h3>Activity history</h3></div></div>
+                        <div id="historyList" class="history-list"></div>
+                    </div>
+                </section>
+
+                <section class="page" data-page-panel="analytics">
+                    <div class="stat-grid analytics-stats">
+                        <article class="stat-card"><span class="stat-icon blue">▣</span><div><small>Total files</small><strong id="analyticsTotal">0</strong></div></article>
+                        <article class="stat-card"><span class="stat-icon violet">✓</span><div><small>Organized</small><strong id="analyticsOrganized">0</strong></div></article>
+                        <article class="stat-card"><span class="stat-icon cyan">◉</span><div><small>Storage</small><strong id="analyticsStorage">0 B</strong></div></article>
+                        <article class="stat-card"><span class="stat-icon amber">◫</span><div><small>Categories</small><strong id="analyticsCategories">0</strong></div></article>
+                    </div>
+                    <div class="analytics-grid">
+                        <section class="card"><div class="card-heading"><div><span class="section-kicker">CATEGORIES</span><h3>Storage by category</h3></div></div><div id="storageChart" class="storage-chart"></div></section>
+                        <section class="card"><div class="card-heading"><div><span class="section-kicker">FORMAT</span><h3>Most common types</h3></div></div><div id="typeChart" class="type-chart"></div></section>
+                    </div>
+                </section>
+
+                <section class="page" data-page-panel="settings">
+                    <div class="settings-grid">
+                        <section class="card settings-card"><div class="card-heading"><div><span class="section-kicker">APPEARANCE</span><h3>Theme</h3></div></div><div class="setting-row"><div><strong>Dark interface</strong><p>Use the high-contrast dashboard theme.</p></div><label class="switch"><input id="themeSetting" type="checkbox"><span></span></label></div></section>
+                        <section class="card settings-card"><div class="card-heading"><div><span class="section-kicker">ORGANIZATION</span><h3>Preferences</h3></div></div><div class="setting-row"><div><strong>Skip duplicates</strong><p>Exclude exact duplicate content by default.</p></div><label class="switch"><input id="duplicateSetting" type="checkbox"><span></span></label></div><div class="setting-row"><div><strong>Grid view</strong><p>Use grid view in the file explorer.</p></div><label class="switch"><input id="viewSetting" type="checkbox" checked><span></span></label></div></section>
+                        <section class="card settings-card"><div class="card-heading"><div><span class="section-kicker">DATA</span><h3>Reset preferences</h3></div></div><p class="muted">Restore all local appearance and view preferences.</p><button class="danger-button" id="resetSettingsBtn" type="button">Reset settings</button></section>
+                    </div>
+                </section>
+            </div>
+        </main>
     </div>
+
+    <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top">↑</button>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
