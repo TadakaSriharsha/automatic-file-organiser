@@ -1,8 +1,8 @@
 # Fillo — File Organisor
 
-Fillo organizes uploaded files into Images, Documents, Videos, Music, Code, Archives, and Others. It never moves or changes your originals and creates a downloadable ZIP. Exact duplicate files are identified by their contents; enable **Skip exact duplicate files** to leave duplicate copies out of the ZIP. Results can be searched, filtered by category, and sorted by name, category, or file size. Recent runs and file/category statistics are shown in the current browser session.
+Fillo is a premium smart file organizer with a responsive dashboard, file explorer, category preview, activity history, analytics, and dark/light themes. It organizes uploaded copies into Images, Documents, Spreadsheets, Presentations, Videos, Audio, Code, Archives, and Other folders. Originals are never moved or overwritten, duplicate filenames receive safe numbered names, and exact duplicate content can be excluded.
 
-Fillo uses deterministic file-extension rules and SHA-256 checks for duplicate detection. It does not use AI, external AI APIs, or send document text to third-party services.
+Fillo uses deterministic file-extension rules and SHA-256 checks for duplicate detection. Dashboard, explorer, category, and analytics data are generated from the local upload and organized-file directories. Organization sessions are persisted to `templates/activity_history.json` and downloads remain private, expiring ZIP links.
 
 ## Run locally
 
@@ -11,7 +11,7 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
-Open the local address printed by Flask. Uploads are limited to 20 MB total and 100 files per run. ZIP downloads are private, one-time links that expire after 30 minutes.
+Open the local address printed by Flask. Uploads are limited to 20 MB total and 100 files per run. ZIP downloads are private links that expire after 30 minutes.
 
 ## Run tests
 
