@@ -6,3 +6,26 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --workers 1 --bind 0.0.0.0:$PORT app:app
     healthCheckPath: /health
+    envVars:
+      - key: FILEFLOW_SECRET_KEY
+        generateValue: true
+      - key: FILEFLOW_COOKIE_SECURE
+        value: true
+      - key: FILEFLOW_DATA_DIR
+        value: /tmp/fileflow
+      - key: FILEFLOW_DB_PATH
+        value: /tmp/fileflow/fileflow.sqlite3
+      - key: FILEFLOW_CORS_ORIGINS
+        value: https://fillo-file-organisor.onrender.com
+      - key: FILEFLOW_SMTP_HOST
+        sync: false
+      - key: FILEFLOW_SMTP_PORT
+        value: "587"
+      - key: FILEFLOW_SMTP_USERNAME
+        sync: false
+      - key: FILEFLOW_SMTP_PASSWORD
+        sync: false
+      - key: FILEFLOW_SMTP_FROM
+        sync: false
+      - key: FILEFLOW_SMTP_TLS
+        value: "true"
