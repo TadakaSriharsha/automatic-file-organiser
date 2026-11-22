@@ -510,7 +510,7 @@ def dashboard():
 @app.route("/signin", methods=["GET", "POST"])
 @app.route("/api/auth/login", methods=["POST"])
 def signin():
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         if current_user():
             return redirect(url_for("dashboard"))
         return render_template("signin.html")
@@ -544,7 +544,7 @@ def signin():
 @app.route("/signup", methods=["GET", "POST"])
 @app.route("/api/auth/signup", methods=["POST"])
 def signup():
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         if current_user():
             return redirect(url_for("dashboard"))
         return render_template("signup.html")
@@ -824,7 +824,7 @@ def send_verification_email(email, verify_url):
 @app.route("/forgot-password", methods=["GET", "POST"])
 @app.route("/api/auth/forgot-password", methods=["POST"])
 def forgot_password():
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         return render_template("forgot_password.html")
 
     payload = request.get_json(silent=True) or request.form
@@ -864,7 +864,7 @@ def forgot_password():
 @app.route("/api/auth/reset-password", methods=["POST"])
 def reset_password():
     token = str(request.args.get("token", "") if request.method == "GET" else (request.get_json(silent=True) or request.form).get("token", ""))
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         if not token:
             return render_template("reset_password.html", valid=False)
         try:
@@ -930,7 +930,7 @@ def reset_password():
 @app.route("/api/auth/verify-email", methods=["POST"])
 def verify_email():
     token = str(request.args.get("token", "") if request.method == "GET" else (request.get_json(silent=True) or request.form).get("token", ""))
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         if not token:
             return render_template("verify_email.html", state="invalid")
         try:

@@ -37,6 +37,7 @@
                 <span class="status-orb"></span>
                 <div><strong id="sidebarUserName">{{ user.name }}</strong><small>Personal workspace</small></div>
             </button>
+            <button class="sidebar-logout" type="button" id="sidebarLogoutBtn"><span>↗</span><span>Log out</span></button>
         </aside>
 
         <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -62,10 +63,13 @@
                     <div class="welcome-card">
                         <div>
                             <span class="eyebrow">WORKSPACE OVERVIEW</span>
-                            <h2>Welcome back</h2>
-                            <p>Keep every file exactly where it belongs.</p>
+                            <h2>Welcome back, {{ user.name.split()[0] if user.name else "there" }}</h2>
+                            <p>Your files, insights, and organization tools—all in one focused workspace.</p>
                         </div>
-                        <button class="primary-button" type="button" data-go="organize">Quick organize <span>→</span></button>
+                        <div class="welcome-actions">
+                            <button class="primary-button" type="button" data-go="organize">Quick organize <span>→</span></button>
+                            <button class="secondary-button welcome-upload" id="welcomeUploadBtn" type="button">＋ Upload files</button>
+                        </div>
                     </div>
 
                     <div class="stat-grid">

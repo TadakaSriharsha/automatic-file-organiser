@@ -107,9 +107,27 @@ async function loadFiles() {
 
 function setText(id, value) { $(id).textContent = value; }
 
+function animateCount(id, target, duration = 600) {
+  const element = $(id);
+  if (!element) return;
+  const numeric = Number.parseInt(String(target).replace(/[^0-9]/g, ""), 10) || 0;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    element.textContent = target;
+    return;
+  }
+  const start = performance.now();
+  function update(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    element.textContent = Math.round(numeric * eased).toLocaleString();
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
 function renderDashboard(data) {
-  setText("statTotal", data.total_files.toLocaleString());
-  setText("statOrganized", data.organized_files.toLocaleString());
+  animateCount("statTotal", data.total_files);
+  animateCount("statOrganized", data.organized_files);
   setText("statStorage", data.storage_used_label);
   setText("statCategories", data.categories.toLocaleString());
   setText("analyticsTotal", data.total_files.toLocaleString());
@@ -611,6 +629,22 @@ window.addEventListener("keydown", event => {
 
 $("profileButton")?.addEventListener("click", () => window.location.assign("/profile"));
 $("topbarProfileButton")?.addEventListener("click", () => window.location.assign("/profile"));
+$("welcomeUploadBtn")?.addEventListener("click", () => {
+  navigate("organize");
+  setTimeout(() => $("fileInput").click(), 0);
+});
+$("sidebarLogoutBtn")?.addEventListener("click", async () => {
+  try {
+    const response = await fetch("/api/auth/logout", {
+      method: "POST",
+      headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" }
+    });
+    const data = await response.json();
+    window.location.assign(data.redirect || "/signin");
+  } catch {
+    showToast("Unable to log out. Please try again.");
+  }
+});
 
 $("duplicateSetting").addEventListener("change", event => { localStorage.setItem("fileflow-duplicates", String(event.target.checked)); $("skipDuplicates").checked=event.target.checked; });
 $("viewSetting").addEventListener("change", event => { localStorage.setItem("fileflow-grid-view", String(event.target.checked)); if(event.target.checked) $("gridViewBtn").click(); else $("listViewBtn").click(); });
