@@ -32,10 +32,10 @@
                 <button class="nav-item" type="button" data-page="settings"><span class="nav-icon">⚙</span><span class="nav-label">Settings</span></button>
             </nav>
 
-            <div class="sidebar-status">
+            <button class="sidebar-status" type="button" id="profileButton" aria-label="Open profile">
                 <span class="status-orb"></span>
-                <div><strong>System ready</strong><small>Local secure storage</small></div>
-            </div>
+                <div><strong id="sidebarUserName">{{ user.name }}</strong><small>Personal workspace</small></div>
+            </button>
         </aside>
 
         <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -52,6 +52,7 @@
                 <div class="topbar-actions">
                     <button class="icon-button" id="themeToggle" type="button" aria-label="Toggle theme">☼</button>
                     <button class="upload-button" id="headerUploadBtn" type="button"><span>＋</span> Upload files</button>
+                    <button class="profile-avatar" type="button" id="topbarProfileButton" title="{{ user.name }}" aria-label="Open profile">{{ user.name[:1] | upper }}</button>
                 </div>
             </header>
 

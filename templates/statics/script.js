@@ -605,6 +605,9 @@ window.addEventListener("keydown", event => {
   }
 });
 
+$("profileButton")?.addEventListener("click", () => window.location.assign("/profile"));
+$("topbarProfileButton")?.addEventListener("click", () => window.location.assign("/profile"));
+
 $("duplicateSetting").addEventListener("change", event => { localStorage.setItem("fileflow-duplicates", String(event.target.checked)); $("skipDuplicates").checked=event.target.checked; });
 $("viewSetting").addEventListener("change", event => { localStorage.setItem("fileflow-grid-view", String(event.target.checked)); if(event.target.checked) $("gridViewBtn").click(); else $("listViewBtn").click(); });
 $("resetSettingsBtn").addEventListener("click", () => {
