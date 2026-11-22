@@ -1,13 +1,21 @@
 import unittest
 import zipfile
+import tempfile
 from io import BytesIO
+from pathlib import Path
 
+import templates.app as app_module
 from templates.app import DOWNLOAD_FOLDER, app, download_organized_files
 
 
 class OrganizerTests(unittest.TestCase):
     def setUp(self):
+        self.metadata_directory = tempfile.TemporaryDirectory()
+        app_module.METADATA_FILE = Path(self.metadata_directory.name) / "library_metadata.json"
         self.client = app.test_client()
+
+    def tearDown(self):
+        self.metadata_directory.cleanup()
 
     def organize(self, files, skip_duplicates=False):
         data = {"files": [(BytesIO(content), filename) for filename, content in files]}
@@ -78,6 +86,59 @@ class OrganizerTests(unittest.TestCase):
             "Documents/notes.txt": b"same bytes",
             "Documents/copy.txt": b"same bytes"
         })
+
+    def test_text_preview_returns_real_file_content(self):
+        response = self.organize([("phase1-preview.txt", b"FileFlow preview text")])
+        self.assertEqual(response.status_code, 200)
+
+        preview = self.client.get("/preview/Documents/phase1-preview.txt")
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.json["filename"], "phase1-preview.txt")
+        self.assertEqual(preview.json["content"], "FileFlow preview text")
+
+    def test_pdf_preview_and_library_download_are_available(self):
+        response = self.organize([("phase1-preview.pdf", b"%PDF-1.4 test")])
+        self.assertEqual(response.status_code, 200)
+
+        preview = self.client.get("/preview/Documents/phase1-preview.pdf")
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.mimetype, "application/pdf")
+        self.assertIn("inline", preview.headers["Content-Disposition"])
+
+        download = self.client.get("/files/download/Documents/phase1-preview.pdf")
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download.data, b"%PDF-1.4 test")
+
+    def test_bulk_favorite_tag_and_collection_actions_persist(self):
+        response = self.organize([("phase1-bulk.txt", b"bulk metadata")])
+        self.assertEqual(response.status_code, 200)
+
+        favorite = self.client.post("/api/files/bulk", json={
+            "paths": ["Documents/phase1-bulk.txt"],
+            "action": "favorite"
+        })
+        self.assertEqual(favorite.status_code, 200)
+
+        tagged = self.client.post("/api/files/bulk", json={
+            "paths": ["Documents/phase1-bulk.txt"],
+            "action": "add_tag",
+            "value": "important"
+        })
+        self.assertEqual(tagged.status_code, 200)
+
+        collected = self.client.post("/api/files/bulk", json={
+            "paths": ["Documents/phase1-bulk.txt"],
+            "action": "collection",
+            "value": "Work"
+        })
+        self.assertEqual(collected.status_code, 200)
+
+        files = self.client.get("/api/files")
+        file = next(item for item in files.json["files"] if item["relative_path"] == "Documents/phase1-bulk.txt")
+        self.assertTrue(file["favorite"])
+        self.assertIn("important", file["tags"])
+        self.assertEqual(file["collection"], "Work")
+        self.assertIn("Work", files.json["collections"])
 
     def test_ai_routes_are_not_available(self):
         self.assertEqual(self.client.post("/ai-edit").status_code, 404)

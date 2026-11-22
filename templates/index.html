@@ -133,8 +133,21 @@
                     <div class="explorer-toolbar card">
                         <label class="search-box">⌕ <input id="explorerSearch" type="search" placeholder="Search files"></label>
                         <select id="explorerCategory" aria-label="Filter category"><option value="all">All categories</option></select>
+                        <select id="explorerExtension" aria-label="Filter extension"><option value="all">All extensions</option></select>
+                        <select id="explorerSize" aria-label="Filter size"><option value="all">All sizes</option><option value="small">Under 100 KB</option><option value="medium">100 KB - 5 MB</option><option value="large">Over 5 MB</option></select>
+                        <select id="explorerDate" aria-label="Filter date"><option value="all">All dates</option><option value="today">Today</option><option value="week">Past 7 days</option><option value="month">Past 30 days</option></select>
                         <select id="explorerSort" aria-label="Sort files"><option value="date-desc">Newest</option><option value="name">Name</option><option value="size-desc">Largest</option><option value="size-asc">Smallest</option></select>
                         <div class="view-toggle" aria-label="View options"><button id="gridViewBtn" class="active" type="button" title="Grid view">▦</button><button id="listViewBtn" type="button" title="List view">☷</button></div>
+                    </div>
+                    <div class="bulk-bar card" id="bulkBar" hidden>
+                        <label class="bulk-check"><input id="selectAllFiles" type="checkbox"> <span id="selectedCount">0 selected</span></label>
+                        <div class="bulk-actions">
+                            <button class="secondary-button" id="favoriteSelectedBtn" type="button">★ Favorite</button>
+                            <button class="secondary-button" id="unfavoriteSelectedBtn" type="button">☆ Unfavorite</button>
+                            <button class="secondary-button" id="tagSelectedBtn" type="button">Add tag</button>
+                            <button class="secondary-button" id="collectionSelectedBtn" type="button">Add to collection</button>
+                            <button class="text-button" id="clearSelectionBtn" type="button">Clear</button>
+                        </div>
                     </div>
                     <div class="card explorer-card"><div id="fileExplorer" class="file-grid"></div></div>
                 </section>
@@ -178,6 +191,31 @@
     </div>
 
     <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top">↑</button>
+    <div class="modal-backdrop" id="filePreviewModal" hidden>
+        <section class="preview-modal card" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+            <header class="preview-modal-header">
+                <div><span class="section-kicker">FILE PREVIEW</span><h3 id="previewModalTitle">Preview</h3></div>
+                <button class="modal-close" id="closePreviewModal" type="button" aria-label="Close preview">×</button>
+            </header>
+            <div class="preview-modal-meta" id="previewModalMeta"></div>
+            <div class="preview-modal-body" id="previewModalBody"></div>
+            <footer class="preview-modal-footer">
+                <button class="secondary-button" id="previewFavoriteBtn" type="button">☆ Favorite</button>
+                <a class="primary-button" id="previewDownloadBtn" href="#" target="_blank" rel="noopener">Open / download</a>
+            </footer>
+        </section>
+    </div>
+    <div class="modal-backdrop" id="confirmModal" hidden>
+        <section class="confirm-modal card" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+            <h3 id="confirmModalTitle">Confirm action</h3>
+            <p id="confirmModalMessage"></p>
+            <div id="confirmModalField"></div>
+            <footer class="confirm-modal-actions">
+                <button class="secondary-button" id="confirmCancelBtn" type="button">Cancel</button>
+                <button class="primary-button" id="confirmApplyBtn" type="button">Apply</button>
+            </footer>
+        </section>
+    </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

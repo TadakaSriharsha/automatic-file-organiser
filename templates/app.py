@@ -30,6 +30,7 @@ DOWNLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 UPLOAD_FOLDER = BASE_DIR.parent / "uploads"
 ORGANIZED_FOLDER = BASE_DIR / "Organized_Files"
 HISTORY_FILE = BASE_DIR / "activity_history.json"
+METADATA_FILE = BASE_DIR / "library_metadata.json"
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 ORGANIZED_FOLDER.mkdir(parents=True, exist_ok=True)
 
@@ -114,6 +115,43 @@ def save_history(entries):
         pass
 
 
+def load_metadata():
+    if not METADATA_FILE.is_file():
+        return {"files": {}, "collections": {}}
+    try:
+        data = json.loads(METADATA_FILE.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return {"files": {}, "collections": {}}
+        return {
+            "files": data.get("files", {}) if isinstance(data.get("files"), dict) else {},
+            "collections": data.get("collections", {}) if isinstance(data.get("collections"), dict) else {}
+        }
+    except (json.JSONDecodeError, OSError):
+        return {"files": {}, "collections": {}}
+
+
+def save_metadata(metadata):
+    try:
+        METADATA_FILE.write_text(
+            json.dumps(metadata, ensure_ascii=False, indent=2),
+            encoding="utf-8"
+        )
+        return True
+    except OSError:
+        return False
+
+
+def clean_tags(values):
+    cleaned = []
+    for value in values if isinstance(values, list) else []:
+        if not isinstance(value, str):
+            continue
+        tag = re.sub(r"\s+", " ", value.strip())[:40]
+        if tag and tag not in cleaned:
+            cleaned.append(tag)
+    return cleaned[:20]
+
+
 def is_within_directory(directory, target):
     try:
         target.resolve().relative_to(directory.resolve())
@@ -124,6 +162,8 @@ def is_within_directory(directory, target):
 
 def build_library():
     files = []
+    metadata = load_metadata()
+    file_metadata = metadata["files"]
     if ORGANIZED_FOLDER.is_dir():
         for path in ORGANIZED_FOLDER.rglob("*"):
             if not path.is_file():
@@ -135,14 +175,20 @@ def build_library():
             except OSError:
                 continue
             category = path.relative_to(ORGANIZED_FOLDER).parts[0] if len(path.relative_to(ORGANIZED_FOLDER).parts) > 1 else get_category(path.name)
+            relative_path = path.relative_to(ORGANIZED_FOLDER).as_posix()
+            item_metadata = file_metadata.get(relative_path, {})
             files.append({
                 "filename": path.name,
                 "category": category,
                 "size": stat.st_size,
                 "size_label": format_size(stat.st_size),
                 "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
-                "relative_path": path.relative_to(ORGANIZED_FOLDER).as_posix(),
-                "previewable": path.suffix.lower() in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"}
+                "relative_path": relative_path,
+                "previewable": path.suffix.lower() in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".pdf", ".txt", ".md", ".csv", ".json", ".xml", ".html", ".css", ".js", ".log"},
+                "preview_type": "image" if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"} else ("pdf" if path.suffix.lower() == ".pdf" else ("text" if path.suffix.lower() in {".txt", ".md", ".csv", ".json", ".xml", ".html", ".css", ".js", ".log"} else "none")),
+                "favorite": item_metadata.get("favorite") is True,
+                "tags": item_metadata.get("tags", []) if isinstance(item_metadata.get("tags"), list) else [],
+                "collection": item_metadata.get("collection") if isinstance(item_metadata.get("collection"), str) else ""
             })
     return sorted(files, key=lambda item: item["modified"], reverse=True)
 
@@ -205,7 +251,67 @@ def api_stats():
 
 @app.route("/api/files")
 def api_files():
-    return jsonify({"files": build_library()})
+    metadata = load_metadata()
+    return jsonify({
+        "files": build_library(),
+        "collections": sorted(metadata["collections"].keys(), key=str.lower)
+    })
+
+
+@app.route("/api/files/bulk", methods=["POST"])
+def bulk_update_files():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Invalid request."}), 400
+
+    paths = payload.get("paths")
+    action = payload.get("action")
+    if not isinstance(paths, list) or not paths:
+        return jsonify({"error": "Select at least one file."}), 400
+    if action not in {"favorite", "unfavorite", "add_tag", "remove_tag", "collection"}:
+        return jsonify({"error": "Unsupported bulk action."}), 400
+
+    metadata = load_metadata()
+    file_metadata = metadata["files"]
+    updated = 0
+    for relative_path in paths:
+        if not isinstance(relative_path, str):
+            continue
+        target = (ORGANIZED_FOLDER / relative_path).resolve()
+        if not is_within_directory(ORGANIZED_FOLDER, target) or not target.is_file():
+            continue
+        item = file_metadata.setdefault(relative_path, {})
+        if action == "favorite":
+            item["favorite"] = True
+        elif action == "unfavorite":
+            item["favorite"] = False
+        elif action == "add_tag":
+            item["tags"] = clean_tags((item.get("tags", []) if isinstance(item.get("tags"), list) else []) + [payload.get("value")])
+        elif action == "remove_tag":
+            tag = payload.get("value")
+            if isinstance(tag, str):
+                item["tags"] = [existing for existing in item.get("tags", []) if existing != tag]
+        elif action == "collection":
+            collection = re.sub(r"\s+", " ", str(payload.get("value", "")).strip())[:50]
+            old_collection = item.get("collection")
+            if isinstance(old_collection, str) and old_collection in metadata["collections"]:
+                members = metadata["collections"][old_collection]
+                if relative_path in members:
+                    members.remove(relative_path)
+            item["collection"] = collection
+            if collection:
+                metadata["collections"].setdefault(collection, [])
+                if relative_path not in metadata["collections"][collection]:
+                    metadata["collections"][collection].append(relative_path)
+            else:
+                for members in metadata["collections"].values():
+                    if relative_path in members:
+                        members.remove(relative_path)
+        updated += 1
+
+    if not save_metadata(metadata):
+        return jsonify({"error": "Could not save file metadata."}), 500
+    return jsonify({"message": f"Updated {updated} file{'s' if updated != 1 else ''}.", "updated": updated})
 
 
 @app.route("/api/history")
@@ -213,14 +319,43 @@ def api_history():
     return jsonify({"history": load_history()})
 
 
+@app.route("/files/download/<path:relative_path>")
+def download_library_file(relative_path):
+    target = (ORGANIZED_FOLDER / relative_path).resolve()
+    if not is_within_directory(ORGANIZED_FOLDER, target) or not target.is_file():
+        return jsonify({"error": "File not found."}), 404
+    return send_file(
+        target,
+        as_attachment=True,
+        download_name=target.name,
+        mimetype="application/octet-stream"
+    )
+
+
 @app.route("/preview/<path:relative_path>")
 def preview_file(relative_path):
     target = (ORGANIZED_FOLDER / relative_path).resolve()
     if not is_within_directory(ORGANIZED_FOLDER, target) or not target.is_file():
         return jsonify({"error": "File not found."}), 404
-    if target.suffix.lower() not in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"}:
-        return jsonify({"error": "Preview is not available for this file type."}), 415
-    return send_from_directory(str(ORGANIZED_FOLDER), relative_path)
+    extension = target.suffix.lower()
+    if extension in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"}:
+        return send_from_directory(str(ORGANIZED_FOLDER), relative_path)
+    if extension == ".pdf":
+        response = send_file(target, mimetype="application/pdf", as_attachment=False)
+        response.headers["Content-Disposition"] = f'inline; filename="{secure_filename(target.name)}"'
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    if extension in {".txt", ".md", ".csv", ".json", ".xml", ".html", ".css", ".js", ".log"}:
+        if target.stat().st_size > 2 * 1024 * 1024:
+            return jsonify({"error": "Text preview is limited to 2 MB."}), 413
+        try:
+            content = target.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            content = target.read_text(encoding="utf-8", errors="replace")
+        response = jsonify({"filename": target.name, "content": content})
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    return jsonify({"error": "Preview is not available for this file type."}), 415
 
 
 @app.route("/organize", methods=["POST"])

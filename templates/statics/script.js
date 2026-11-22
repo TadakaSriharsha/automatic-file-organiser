@@ -16,6 +16,9 @@ let organizedFiles = [];
 let stats = null;
 let toastTimer;
 let previewReady = false;
+let selectedFiles = new Set();
+let lastPreviewFile = null;
+let confirmAction = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -30,6 +33,16 @@ function formatBytes(bytes) {
 function extensionOf(name) {
   const dot = name.lastIndexOf(".");
   return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[character]);
 }
 
 function categoryFor(name) {
@@ -84,6 +97,8 @@ async function loadFiles() {
     if (!response.ok) throw new Error("Unable to load files");
     const data = await response.json();
     organizedFiles = data.files || [];
+    populateExplorerFilters();
+    selectedFiles = new Set([...selectedFiles].filter(path => organizedFiles.some(file => file.relative_path === path)));
     renderExplorer();
   } catch (error) {
     showToast(error.message);
@@ -141,14 +156,140 @@ function renderDashboard(data) {
   renderAnalytics();
 }
 
+function populateExplorerFilters() {
+  const categorySelect = $("explorerCategory");
+  const extensionSelect = $("explorerExtension");
+  if (categorySelect) {
+    const category = categorySelect.value || "all";
+    categorySelect.replaceChildren(new Option("All categories", "all"));
+    [...new Set(organizedFiles.map(file => file.category))].sort().forEach(name => categorySelect.add(new Option(name, name)));
+    if ([...categorySelect.options].some(option => option.value === category)) categorySelect.value = category;
+  }
+  if (extensionSelect) {
+    const current = extensionSelect.value || "all";
+    extensionSelect.replaceChildren(new Option("All extensions", "all"));
+    [...new Set(organizedFiles.map(file => extensionOf(file.filename)).filter(Boolean))].sort().forEach(name => extensionSelect.add(new Option(`.${name}`, name)));
+    if ([...extensionSelect.options].some(option => option.value === current)) extensionSelect.value = current;
+  }
+}
+
+function updateBulkBar() {
+  const visibleCount = selectedFiles.size;
+  $("bulkBar").hidden = visibleCount === 0;
+  $("selectedCount").textContent = `${visibleCount} selected`;
+  const visiblePaths = new Set(organizedFiles.map(file => file.relative_path));
+  const visibleSelected = [...selectedFiles].filter(path => visiblePaths.has(path)).length;
+  $("selectAllFiles").checked = visibleSelected > 0 && visibleSelected === organizedFiles.length;
+  $("selectAllFiles").indeterminate = visibleSelected > 0 && visibleSelected < organizedFiles.length;
+}
+
+async function bulkUpdate(action, value = null) {
+  if (!selectedFiles.size) return;
+  try {
+    const response = await fetch("/api/files/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        value,
+        paths: [...selectedFiles]
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not update selected files");
+    showToast(data.message);
+    await loadFiles();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function openConfirm(title, message, fieldType, callback) {
+  $("confirmModalTitle").textContent = title;
+  $("confirmModalMessage").textContent = message;
+  const field = $("confirmModalField");
+  field.replaceChildren();
+  if (fieldType === "tag" || fieldType === "collection") {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = fieldType === "tag" ? "Tag name" : "Collection name";
+    input.maxLength = fieldType === "tag" ? 40 : 50;
+    field.appendChild(input);
+  }
+  confirmAction = callback;
+  $("confirmModal").hidden = false;
+  const input = field.querySelector("input");
+  if (input) setTimeout(() => input.focus(), 0);
+}
+
+async function openFilePreview(file) {
+  lastPreviewFile = file;
+  $("previewModal").hidden = false;
+  $("previewModalTitle").textContent = file.filename;
+  $("previewModalMeta").innerHTML = `<span>${escapeHtml(file.category)}</span><span>${escapeHtml(file.size_label)}</span><span>${escapeHtml(file.relative_path)}</span>`;
+  $("previewFavoriteBtn").textContent = file.favorite ? "★ Favorited" : "☆ Favorite";
+  $("previewDownloadBtn").href = `/files/download/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}`;
+  const body = $("previewModalBody");
+  body.replaceChildren();
+
+  if (file.preview_type === "image") {
+    const image = document.createElement("img");
+    image.src = `/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}`;
+    image.alt = file.filename;
+    body.appendChild(image);
+  } else if (file.preview_type === "pdf") {
+    const frame = document.createElement("iframe");
+    frame.src = `/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}`;
+    frame.title = file.filename;
+    body.appendChild(frame);
+  } else if (file.preview_type === "text") {
+    try {
+      const response = await fetch(`/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not preview this file");
+      const pre = document.createElement("pre");
+      pre.textContent = data.content;
+      body.replaceChildren(pre);
+    } catch (error) {
+      body.innerHTML = `<div class="preview-empty"><strong>Preview unavailable</strong><p class="muted">${escapeHtml(error.message)}</p></div>`;
+    }
+  } else {
+    body.innerHTML = '<div class="preview-empty"><strong>No inline preview for this file type</strong><p class="muted">Use Open / download to view or save the original file.</p></div>';
+  }
+}
+
 function renderExplorer() {
   const search = $("explorerSearch")?.value.trim().toLowerCase() || "";
   const category = $("explorerCategory")?.value || "all";
+  const extension = $("explorerExtension")?.value || "all";
+  const sizeFilter = $("explorerSize")?.value || "all";
+  const dateFilter = $("explorerDate")?.value || "all";
   const sort = $("explorerSort")?.value || "date-desc";
-  let files = organizedFiles.filter(file =>
-    (!search || file.filename.toLowerCase().includes(search)) &&
-    (category === "all" || file.category === category)
-  );
+  const now = Date.now();
+  let files = organizedFiles.filter(file => {
+    const fileExtension = extensionOf(file.filename);
+    const matchesSearch = !search ||
+      file.filename.toLowerCase().includes(search) ||
+      file.category.toLowerCase().includes(search) ||
+      (file.tags || []).some(tag => tag.toLowerCase().includes(search)) ||
+      (file.collection || "").toLowerCase().includes(search);
+    const matchesSize =
+      sizeFilter === "all" ||
+      (sizeFilter === "small" && file.size < 100 * 1024) ||
+      (sizeFilter === "medium" && file.size >= 100 * 1024 && file.size <= 5 * 1024 * 1024) ||
+      (sizeFilter === "large" && file.size > 5 * 1024 * 1024);
+    const age = now - new Date(file.modified).getTime();
+    const matchesDate =
+      dateFilter === "all" ||
+      (dateFilter === "today" && age < 24 * 60 * 60 * 1000) ||
+      (dateFilter === "week" && age < 7 * 24 * 60 * 60 * 1000) ||
+      (dateFilter === "month" && age < 30 * 24 * 60 * 60 * 1000);
+    return matchesSearch &&
+      (category === "all" || file.category === category) &&
+      (extension === "all" || fileExtension === extension) &&
+      matchesSize &&
+      matchesDate;
+  });
   files.sort((a,b) => {
     if (sort === "name") return a.filename.localeCompare(b.filename);
     if (sort === "size-desc") return b.size-a.size;
@@ -156,27 +297,42 @@ function renderExplorer() {
     return new Date(b.modified)-new Date(a.modified);
   });
 
-  const categorySelect = $("explorerCategory");
-  if (categorySelect && !categorySelect.dataset.loaded) {
-    [...new Set(organizedFiles.map(file => file.category))].sort().forEach(name => categorySelect.add(new Option(name,name)));
-    categorySelect.dataset.loaded = "true";
-  }
-
   const grid = $("fileExplorer");
   grid.replaceChildren();
   if (!files.length) {
-    grid.innerHTML = '<div class="empty-state"><div><strong>No files found</strong><p>Upload and organize files to populate this space.</p></div></div>';
+    grid.innerHTML = '<div class="empty-state"><div><strong>No files match these filters</strong><p>Clear a filter or upload more files to continue.</p></div></div>';
+    updateBulkBar();
     return;
   }
   files.forEach(file => {
     const tile = document.createElement("article");
-    tile.className = "file-tile";
-    const preview = file.previewable
-      ? `<img src="/preview/${encodeURI(file.relative_path)}" alt="" loading="lazy">`
+    tile.className = `file-tile${selectedFiles.has(file.relative_path) ? " selected" : ""}`;
+    const preview = file.preview_type === "image"
+      ? `<img src="/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}" alt="" loading="lazy">`
       : fileIcon(file.filename);
-    tile.innerHTML = `<div class="file-preview">${preview}</div><strong title="${file.filename}">${file.filename}</strong><small>${file.category} · ${file.size_label}</small>`;
+    const tags = (file.tags || []).slice(0, 3).map(tag => `<span class="file-tag">${escapeHtml(tag)}</span>`).join("");
+    tile.innerHTML = `
+      <label class="file-select" title="Select ${escapeHtml(file.filename)}"><input type="checkbox" ${selectedFiles.has(file.relative_path) ? "checked" : ""}></label>
+      ${file.favorite ? '<span class="favorite-badge" title="Favorite">★</span>' : ""}
+      <div class="file-preview">${preview}</div>
+      <strong title="${escapeHtml(file.filename)}">${escapeHtml(file.filename)}</strong>
+      <small>${escapeHtml(file.category)} · ${escapeHtml(file.size_label)}</small>
+      ${tags ? `<div class="file-tags">${tags}</div>` : ""}
+    `;
+    tile.querySelector(".file-select input").addEventListener("change", event => {
+      event.stopPropagation();
+      if (event.target.checked) selectedFiles.add(file.relative_path);
+      else selectedFiles.delete(file.relative_path);
+      updateBulkBar();
+      renderExplorer();
+    });
+    tile.addEventListener("dblclick", () => openFilePreview(file));
+    tile.addEventListener("click", event => {
+      if (!event.target.closest(".file-select")) openFilePreview(file);
+    });
     grid.appendChild(tile);
   });
+  updateBulkBar();
 }
 
 function renderCategories() {
@@ -383,9 +539,65 @@ $("applyOrganizationBtn").addEventListener("click", applyOrganization);
 
 $("explorerSearch").addEventListener("input", renderExplorer);
 $("explorerCategory").addEventListener("change", renderExplorer);
+$("explorerExtension").addEventListener("change", renderExplorer);
+$("explorerSize").addEventListener("change", renderExplorer);
+$("explorerDate").addEventListener("change", renderExplorer);
 $("explorerSort").addEventListener("change", renderExplorer);
 $("gridViewBtn").addEventListener("click", () => { $("fileExplorer").classList.remove("list"); $("gridViewBtn").classList.add("active"); $("listViewBtn").classList.remove("active"); });
 $("listViewBtn").addEventListener("click", () => { $("fileExplorer").classList.add("list"); $("listViewBtn").classList.add("active"); $("gridViewBtn").classList.remove("active"); });
+$("selectAllFiles").addEventListener("change", event => {
+  let visibleFiles = organizedFiles;
+  const search = $("explorerSearch").value.trim().toLowerCase();
+  const category = $("explorerCategory").value;
+  const extension = $("explorerExtension").value;
+  const sizeFilter = $("explorerSize").value;
+  const dateFilter = $("explorerDate").value;
+  visibleFiles = organizedFiles.filter(file => {
+    const matchesSearch = !search || file.filename.toLowerCase().includes(search) || file.category.toLowerCase().includes(search) ||
+      (file.tags || []).some(tag => tag.toLowerCase().includes(search)) || (file.collection || "").toLowerCase().includes(search);
+    const age = Date.now() - new Date(file.modified).getTime();
+    const matchesSize = sizeFilter === "all" || (sizeFilter === "small" && file.size < 100*1024) ||
+      (sizeFilter === "medium" && file.size >= 100*1024 && file.size <= 5*1024*1024) ||
+      (sizeFilter === "large" && file.size > 5*1024*1024);
+    const matchesDate = dateFilter === "all" || (dateFilter === "today" && age < 86400000) ||
+      (dateFilter === "week" && age < 604800000) || (dateFilter === "month" && age < 2592000000);
+    return matchesSearch && (category === "all" || file.category === category) &&
+      (extension === "all" || extensionOf(file.filename) === extension) && matchesSize && matchesDate;
+  });
+  visibleFiles.forEach(file => event.target.checked ? selectedFiles.add(file.relative_path) : selectedFiles.delete(file.relative_path));
+  renderExplorer();
+});
+$("clearSelectionBtn").addEventListener("click", () => { selectedFiles.clear(); renderExplorer(); });
+$("favoriteSelectedBtn").addEventListener("click", () => bulkUpdate("favorite"));
+$("unfavoriteSelectedBtn").addEventListener("click", () => bulkUpdate("unfavorite"));
+$("tagSelectedBtn").addEventListener("click", () => openConfirm(
+  "Add tag",
+  "A custom tag will be added to every selected file.",
+  "tag",
+  value => value ? bulkUpdate("add_tag", value) : showToast("Enter a tag name")
+));
+$("collectionSelectedBtn").addEventListener("click", () => openConfirm(
+  "Add to collection",
+  "Move the selected files into a named collection.",
+  "collection",
+  value => value ? bulkUpdate("collection", value) : showToast("Enter a collection name")
+));
+$("confirmCancelBtn").addEventListener("click", () => { confirmAction = null; $("confirmModal").hidden = true; });
+$("confirmApplyBtn").addEventListener("click", () => {
+  const input = $("confirmModalField").querySelector("input");
+  const value = input ? input.value.trim() : null;
+  const callback = confirmAction;
+  confirmAction = null;
+  $("confirmModal").hidden = true;
+  if (callback) callback(value);
+});
+$("closePreviewModal").addEventListener("click", () => { $("filePreviewModal").hidden = true; lastPreviewFile = null; });
+$("filePreviewModal").addEventListener("click", event => { if (event.target === $("filePreviewModal")) { $("filePreviewModal").hidden = true; lastPreviewFile = null; } });
+$("previewFavoriteBtn").addEventListener("click", () => {
+  if (!lastPreviewFile) return;
+  selectedFiles = new Set([lastPreviewFile.relative_path]);
+  bulkUpdate(lastPreviewFile.favorite ? "unfavorite" : "favorite").then(() => { $("filePreviewModal").hidden = true; });
+});
 
 $("duplicateSetting").addEventListener("change", event => { localStorage.setItem("fileflow-duplicates", String(event.target.checked)); $("skipDuplicates").checked=event.target.checked; });
 $("viewSetting").addEventListener("change", event => { localStorage.setItem("fileflow-grid-view", String(event.target.checked)); if(event.target.checked) $("gridViewBtn").click(); else $("listViewBtn").click(); });
