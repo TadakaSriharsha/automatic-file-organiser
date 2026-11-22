@@ -467,11 +467,19 @@ def health():
     resend_configured = bool(os.environ.get("RESEND_API_KEY") and (
         os.environ.get("FILEFLOW_SMTP_FROM") or os.environ.get("FILEFLOW_EMAIL_FROM")
     ))
-    smtp_configured = bool(os.environ.get("FILEFLOW_SMTP_HOST") and os.environ.get("FILEFLOW_SMTP_FROM"))
+    smtp_host_configured = bool(os.environ.get("FILEFLOW_SMTP_HOST"))
+    smtp_sender_configured = bool(
+        os.environ.get("FILEFLOW_SMTP_FROM") or os.environ.get("FILEFLOW_SMTP_USERNAME")
+    )
+    smtp_configured = smtp_host_configured and smtp_sender_configured
     return jsonify({
         "status": "ok",
         "service": "FileFlow",
-        "email_delivery": "resend" if resend_configured else ("smtp" if smtp_configured else "not_configured")
+        "email_delivery": "resend" if resend_configured else ("smtp" if smtp_configured else "not_configured"),
+        "smtp_host_configured": smtp_host_configured,
+        "smtp_sender_configured": smtp_sender_configured,
+        "smtp_username_configured": bool(os.environ.get("FILEFLOW_SMTP_USERNAME")),
+        "smtp_password_configured": bool(os.environ.get("FILEFLOW_SMTP_PASSWORD"))
     })
 
 
@@ -629,6 +637,35 @@ def send_via_resend(to_email, subject, text_body, html_body):
         return False
 
 
+def send_via_smtp(to_email, subject, text_body, html_body):
+    host = os.environ.get("FILEFLOW_SMTP_HOST")
+    port = int(os.environ.get("FILEFLOW_SMTP_PORT", "587"))
+    username = os.environ.get("FILEFLOW_SMTP_USERNAME")
+    password = os.environ.get("FILEFLOW_SMTP_PASSWORD")
+    sender = os.environ.get("FILEFLOW_SMTP_FROM") or username
+    use_tls = os.environ.get("FILEFLOW_SMTP_TLS", "true").lower() == "true"
+    if not host or not sender:
+        return False
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = to_email
+    message.set_content(text_body)
+    message.set_alternative(html_body, subtype="html")
+    try:
+        smtp_class = smtplib.SMTP_SSL if port == 465 else smtplib.SMTP
+        with smtp_class(host, port, timeout=15) as smtp:
+            if port != 465 and use_tls:
+                smtp.starttls()
+            if username:
+                smtp.login(username, password or "")
+            smtp.send_message(message)
+        return True
+    except (smtplib.SMTPException, OSError, TimeoutError) as error:
+        app.logger.error("SMTP email delivery failed: %s", error)
+        return False
+
+
 def send_reset_email(email, reset_url):
     subject = "Reset your FileFlow password"
     text_body = (
@@ -642,6 +679,8 @@ def send_reset_email(email, reset_url):
         <p><a href="{reset_url}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#6d7cf4;color:#fff;text-decoration:none;font-weight:bold">Reset password</a></p>
         <p style="color:#718096;font-size:13px">This link expires in 30 minutes. If you did not request it, you can ignore this email.</p></div></body></html>"""
     if send_via_resend(email, subject, text_body, html_body):
+        return True
+    if send_via_smtp(email, subject, text_body, html_body):
         return True
     host = os.environ.get("FILEFLOW_SMTP_HOST")
     port = int(os.environ.get("FILEFLOW_SMTP_PORT", "587"))
@@ -692,6 +731,8 @@ def send_password_changed_email(email):
         <p style="color:#718096;font-size:13px">If you did not make this change, reset your password immediately.</p></div></body></html>"""
     if send_via_resend(email, subject, text_body, html_body):
         return True
+    if send_via_smtp(email, subject, text_body, html_body):
+        return True
     host = os.environ.get("FILEFLOW_SMTP_HOST")
     port = int(os.environ.get("FILEFLOW_SMTP_PORT", "587"))
     username = os.environ.get("FILEFLOW_SMTP_USERNAME")
@@ -739,6 +780,8 @@ def send_verification_email(email, verify_url):
         <p><a href="{verify_url}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#6d7cf4;color:#fff;text-decoration:none;font-weight:bold">Verify email</a></p>
         <p style="color:#718096;font-size:13px">This link expires in 24 hours.</p></div></body></html>"""
     if send_via_resend(email, subject, text_body, html_body):
+        return True
+    if send_via_smtp(email, subject, text_body, html_body):
         return True
     host = os.environ.get("FILEFLOW_SMTP_HOST")
     port = int(os.environ.get("FILEFLOW_SMTP_PORT", "587"))

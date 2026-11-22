@@ -233,6 +233,16 @@ class OrganizerTests(unittest.TestCase):
             )
         self.assertFalse(sent)
 
+    def test_smtp_delivery_requires_host_and_sender(self):
+        with patch.dict("os.environ", {}, clear=True):
+            sent = app_module.send_via_smtp(
+                "test@example.com",
+                "Subject",
+                "Text",
+                "<p>Text</p>"
+            )
+        self.assertFalse(sent)
+
     def test_invalid_reset_token_is_rejected_and_valid_reset_changes_password(self):
         anonymous = app.test_client()
         with app_module.get_db() as connection:
