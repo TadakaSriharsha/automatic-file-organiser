@@ -304,6 +304,7 @@ async function applyOrganization() {
 
   const request = new XMLHttpRequest();
   request.open("POST","/organize");
+  request.timeout = 60000;
   request.upload.onprogress = event => {
     if (!event.lengthComputable) return;
     const percent = Math.round(event.loaded/event.total*100);
@@ -312,7 +313,11 @@ async function applyOrganization() {
   };
   request.onload = () => {
     let data;
-    try { data = JSON.parse(request.responseText); } catch { showToast("The server returned an unreadable response."); return; }
+    try { data = JSON.parse(request.responseText); } catch {
+      $("progressPanel").hidden = true;
+      showToast("The server returned an unreadable response.");
+      return;
+    }
     if (request.status >= 200 && request.status < 300) {
       $("progressFill").style.width = "100%";
       $("progressPercent").textContent = "100%";
@@ -325,9 +330,20 @@ async function applyOrganization() {
       setTimeout(() => { $("progressPanel").hidden = true; $("progressFill").style.width = "0%"; }, 900);
       return;
     }
+    $("progressPanel").hidden = true;
     showToast(data.error || "Unable to organize files");
   };
-  request.onerror = () => showToast("Could not reach the server");
+  request.onerror = () => {
+    $("progressPanel").hidden = true;
+    showToast("Could not reach the server");
+  };
+  request.ontimeout = () => {
+    $("progressPanel").hidden = true;
+    showToast("The upload took too long. Please try again.");
+  };
+  request.onabort = () => {
+    $("progressPanel").hidden = true;
+  };
   request.send(form);
 }
 

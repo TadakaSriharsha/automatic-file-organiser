@@ -1,5 +1,55 @@
 [
   {
+    "id": "59aea5e26a96de39",
+    "date": "2026-11-22T05:52:37.101559+00:00",
+    "status": "success",
+    "files_processed": 4,
+    "files_organized": 4,
+    "duplicates": 0,
+    "categories_created": [
+      "Archives",
+      "Documents",
+      "Images",
+      "Videos"
+    ],
+    "filenames": [
+      "photo.svg",
+      "report.odt",
+      "video.webm",
+      "backup.tar"
+    ]
+  },
+  {
+    "id": "8ff5402d798d20d7",
+    "date": "2026-11-22T05:52:37.066472+00:00",
+    "status": "success",
+    "files_processed": 3,
+    "files_organized": 2,
+    "duplicates": 1,
+    "categories_created": [
+      "Documents"
+    ],
+    "filenames": [
+      "notes.txt",
+      "different.txt"
+    ]
+  },
+  {
+    "id": "44aa715f82611c30",
+    "date": "2026-11-22T05:52:37.041790+00:00",
+    "status": "success",
+    "files_processed": 2,
+    "files_organized": 2,
+    "duplicates": 1,
+    "categories_created": [
+      "Documents"
+    ],
+    "filenames": [
+      "notes.txt",
+      "copy.txt"
+    ]
+  },
+  {
     "id": "7046cc28742ffb5c",
     "date": "2026-11-21T15:11:43.771624+00:00",
     "status": "success",
