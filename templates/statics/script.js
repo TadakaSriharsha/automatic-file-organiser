@@ -598,6 +598,12 @@ $("previewFavoriteBtn").addEventListener("click", () => {
   selectedFiles = new Set([lastPreviewFile.relative_path]);
   bulkUpdate(lastPreviewFile.favorite ? "unfavorite" : "favorite").then(() => { $("filePreviewModal").hidden = true; });
 });
+window.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    if (!$("filePreviewModal").hidden) $("closePreviewModal").click();
+    if (!$("confirmModal").hidden) $("confirmCancelBtn").click();
+  }
+});
 
 $("duplicateSetting").addEventListener("change", event => { localStorage.setItem("fileflow-duplicates", String(event.target.checked)); $("skipDuplicates").checked=event.target.checked; });
 $("viewSetting").addEventListener("change", event => { localStorage.setItem("fileflow-grid-view", String(event.target.checked)); if(event.target.checked) $("gridViewBtn").click(); else $("listViewBtn").click(); });

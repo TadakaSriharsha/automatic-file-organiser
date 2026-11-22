@@ -11,7 +11,15 @@ from templates.app import DOWNLOAD_FOLDER, app, download_organized_files
 class OrganizerTests(unittest.TestCase):
     def setUp(self):
         self.metadata_directory = tempfile.TemporaryDirectory()
+        root = Path(self.metadata_directory.name)
+        app_module.DOWNLOAD_FOLDER = root / "downloads"
+        app_module.UPLOAD_FOLDER = root / "uploads"
+        app_module.ORGANIZED_FOLDER = root / "organized"
+        app_module.HISTORY_FILE = root / "activity_history.json"
         app_module.METADATA_FILE = Path(self.metadata_directory.name) / "library_metadata.json"
+        app_module.DOWNLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+        app_module.UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+        app_module.ORGANIZED_FOLDER.mkdir(parents=True, exist_ok=True)
         self.client = app.test_client()
 
     def tearDown(self):
@@ -25,7 +33,7 @@ class OrganizerTests(unittest.TestCase):
 
     def zip_contents(self, response):
         token = response.json["download_url"].rsplit("/", 1)[-1]
-        archive_path = DOWNLOAD_FOLDER / f"{token}.zip"
+        archive_path = app_module.DOWNLOAD_FOLDER / f"{token}.zip"
         self.assertTrue(archive_path.is_file())
         with zipfile.ZipFile(BytesIO(archive_path.read_bytes())) as archive:
             contents = {name: archive.read(name) for name in archive.namelist()}
@@ -104,10 +112,12 @@ class OrganizerTests(unittest.TestCase):
         self.assertEqual(preview.status_code, 200)
         self.assertEqual(preview.mimetype, "application/pdf")
         self.assertIn("inline", preview.headers["Content-Disposition"])
+        preview.close()
 
         download = self.client.get("/files/download/Documents/phase1-preview.pdf")
         self.assertEqual(download.status_code, 200)
         self.assertEqual(download.data, b"%PDF-1.4 test")
+        download.close()
 
     def test_bulk_favorite_tag_and_collection_actions_persist(self):
         response = self.organize([("phase1-bulk.txt", b"bulk metadata")])
