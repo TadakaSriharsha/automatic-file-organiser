@@ -13,6 +13,23 @@ python app.py
 
 Open the local address printed by Flask. Uploads are limited to 20 MB total and 100 files per run. ZIP downloads are private links that expire after 30 minutes.
 
+## Authentication setup
+
+FileFlow uses SQLite for local users and server-tracked sessions. Set `FILEFLOW_SECRET_KEY` to a persistent random value. Without it, restarts invalidate existing sessions.
+
+Copy `.env.example` to `.env` and configure the SMTP variables to enable verification and password-reset email. On Render, store `FILEFLOW_DATA_DIR` and `FILEFLOW_DB_PATH` on a persistent disk; the default repository paths are not durable.
+
+Required production settings:
+
+- `FILEFLOW_SECRET_KEY`
+- `FILEFLOW_COOKIE_SECURE=true`
+- `FILEFLOW_CORS_ORIGINS`
+- `FILEFLOW_SMTP_HOST`
+- `FILEFLOW_SMTP_PORT`
+- `FILEFLOW_SMTP_USERNAME`
+- `FILEFLOW_SMTP_PASSWORD`
+- `FILEFLOW_SMTP_FROM`
+
 ## Run tests
 
 ```powershell

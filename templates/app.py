@@ -85,6 +85,7 @@ def init_database():
                 full_name TEXT NOT NULL,
                 email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
+                email_verified INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -100,9 +101,76 @@ def init_database():
             CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
             CREATE INDEX IF NOT EXISTS idx_reset_tokens_hash ON password_reset_tokens(token_hash);
         """)
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)").fetchall()}
+        if "email_verified" not in columns:
+            connection.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
+        connection.executescript("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL UNIQUE,
+                user_id INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL,
+                revoked_at TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_sessions_lookup ON sessions(session_id, user_id);
+            CREATE TABLE IF NOT EXISTS email_verification_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT NOT NULL,
+                expires_at INTEGER NOT NULL,
+                used_at TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_email_verify_hash ON email_verification_tokens(token_hash);
+        """)
 
 
 init_database()
+
+
+@app.before_request
+def validate_csrf_and_origin():
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return None
+    origin = request.headers.get("Origin")
+    if origin:
+        allowed = {
+            item.strip().rstrip("/")
+            for item in os.environ.get("FILEFLOW_CORS_ORIGINS", "").split(",")
+            if item.strip()
+        }
+        host_origin = f"{request.scheme}://{request.host}"
+        allowed.add(host_origin.rstrip("/"))
+        if origin.rstrip("/") not in allowed:
+            return jsonify({"error": "Cross-origin request blocked."}), 403
+    csrf_header = request.headers.get("X-CSRF-Token")
+    if csrf_header and session.get("csrf_token") and not secrets.compare_digest(csrf_header, session["csrf_token"]):
+        return jsonify({"error": "Invalid security token."}), 403
+    return None
+
+
+@app.after_request
+def security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    origin = request.headers.get("Origin")
+    allowed_origins = {
+        item.strip().rstrip("/")
+        for item in os.environ.get("FILEFLOW_CORS_ORIGINS", "").split(",")
+        if item.strip()
+    }
+    if origin and origin.rstrip("/") in allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-CSRF-Token"
+        response.headers["Vary"] = "Origin"
+    return response
 
 
 def normalize_email(email):
@@ -126,13 +194,21 @@ def password_errors(password):
 
 def current_user():
     user_id = session.get("user_id")
-    if not user_id:
+    session_id = session.get("session_id")
+    if not user_id or not session_id:
         return None
     with get_db() as connection:
-        return connection.execute(
-            "SELECT id, full_name, email, created_at FROM users WHERE id = ?",
+        active = connection.execute(
+            "SELECT id FROM sessions WHERE session_id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?",
+            (session_id, user_id, int(time.time()))
+        ).fetchone()
+        if not active:
+            return None
+        user = connection.execute(
+            "SELECT id, full_name, email, email_verified, created_at FROM users WHERE id = ?",
             (user_id,)
         ).fetchone()
+        return user
 
 
 def login_required(view):
@@ -155,6 +231,29 @@ def auth_rate_limited(key, limit=10, window_seconds=300):
     attempts.append(now)
     AUTH_RATE_LIMITS[key] = attempts
     return False
+
+
+def create_server_session(user_id, remember):
+    session_id = secrets.token_urlsafe(32)
+    session["csrf_token"] = secrets.token_urlsafe(32)
+    lifetime = 30 * 24 * 60 * 60 if remember else 12 * 60 * 60
+    expires_at = int(time.time()) + lifetime
+    with get_db() as connection:
+        connection.execute(
+            "INSERT INTO sessions (session_id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+            (session_id, user_id, expires_at, datetime.now(timezone.utc).isoformat())
+        )
+    return session_id, lifetime
+
+
+def revoke_server_session():
+    session_id = session.get("session_id")
+    if session_id:
+        with get_db() as connection:
+            connection.execute(
+                "UPDATE sessions SET revoked_at = ? WHERE session_id = ?",
+                (datetime.now(timezone.utc).isoformat(), session_id)
+            )
 
 
 def reset_serializer():
@@ -361,6 +460,16 @@ def build_stats():
     }
 
 
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "service": "FileFlow"})
+
+
+@app.route("/auth.css")
+def auth_styles():
+    return send_from_directory(str(TEMPLATE_FOLDER), "auth.css")
+
+
 @app.route("/")
 def home():
     if current_user():
@@ -381,6 +490,7 @@ def dashboard():
 
 
 @app.route("/signin", methods=["GET", "POST"])
+@app.route("/api/auth/login", methods=["POST"])
 def signin():
     if request.method == "GET":
         if current_user():
@@ -403,11 +513,18 @@ def signin():
 
     session.clear()
     session["user_id"] = user["id"]
+    session_id, lifetime = create_server_session(user["id"], remember)
+    session["session_id"] = session_id
     session.permanent = remember
-    return jsonify({"redirect": url_for("dashboard"), "name": user["full_name"]})
+    return jsonify({
+        "redirect": url_for("dashboard"),
+        "name": user["full_name"],
+        "csrf_token": session.get("csrf_token")
+    })
 
 
 @app.route("/signup", methods=["GET", "POST"])
+@app.route("/api/auth/signup", methods=["POST"])
 def signup():
     if request.method == "GET":
         if current_user():
@@ -446,10 +563,24 @@ def signup():
         return jsonify({"error": "An account with this email already exists."}), 409
 
     user_workspace(user_id)
+    verification_token = verification_serializer().dumps({"uid": user_id, "nonce": secrets.token_urlsafe(24)})
+    verification_hash = hashlib.sha256(verification_token.encode("utf-8")).hexdigest()
+    with get_db() as connection:
+        connection.execute(
+            "INSERT INTO email_verification_tokens (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)",
+            (user_id, verification_hash, int(time.time()) + 24 * 60 * 60, now)
+        )
+    send_verification_email(email, url_for("verify_email", token=verification_token, _external=True))
     session.clear()
     session["user_id"] = user_id
+    session_id, lifetime = create_server_session(user_id, True)
+    session["session_id"] = session_id
     session.permanent = True
-    return jsonify({"redirect": url_for("dashboard"), "name": full_name})
+    return jsonify({
+        "redirect": url_for("dashboard"),
+        "name": full_name,
+        "csrf_token": session.get("csrf_token")
+    })
 
 
 def send_reset_email(email, reset_url):
@@ -472,6 +603,14 @@ def send_reset_email(email, reset_url):
         f"Reset your password: {reset_url}\n\n"
         "This link expires in 30 minutes. If you did not request it, you can ignore this email."
     )
+    message.set_alternative(
+        f"""<html><body style="margin:0;background:#f4f7fb;font-family:Arial,sans-serif">
+        <div style="max-width:560px;margin:32px auto;padding:28px;background:#fff;border-radius:16px;border:1px solid #e4e8f1">
+        <h1 style="color:#172033">FileFlow</h1><p>We received a request to reset your password.</p>
+        <p><a href="{reset_url}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#6d7cf4;color:#fff;text-decoration:none;font-weight:bold">Reset password</a></p>
+        <p style="color:#718096;font-size:13px">This link expires in 30 minutes. If you did not request it, you can ignore this email.</p></div></body></html>""",
+        subtype="html"
+    )
     try:
         with smtplib.SMTP(host, port, timeout=10) as smtp:
             if use_tls:
@@ -485,7 +624,86 @@ def send_reset_email(email, reset_url):
         return False
 
 
+def send_password_changed_email(email):
+    host = os.environ.get("FILEFLOW_SMTP_HOST")
+    port = int(os.environ.get("FILEFLOW_SMTP_PORT", "587"))
+    username = os.environ.get("FILEFLOW_SMTP_USERNAME")
+    password = os.environ.get("FILEFLOW_SMTP_PASSWORD")
+    sender = os.environ.get("FILEFLOW_SMTP_FROM", username)
+    use_tls = os.environ.get("FILEFLOW_SMTP_TLS", "true").lower() == "true"
+    if not host or not sender:
+        return False
+    message = EmailMessage()
+    message["Subject"] = "Your FileFlow password was changed"
+    message["From"] = sender
+    message["To"] = email
+    message.set_content("Your FileFlow password was changed. If you did not make this change, reset your password immediately.")
+    message.set_alternative(
+        """<html><body style="margin:0;background:#f4f7fb;font-family:Arial,sans-serif">
+        <div style="max-width:560px;margin:32px auto;padding:28px;background:#fff;border-radius:16px;border:1px solid #e4e8f1">
+        <h1 style="color:#172033">FileFlow security notice</h1>
+        <p>Your FileFlow password was changed.</p>
+        <p style="color:#718096;font-size:13px">If you did not make this change, reset your password immediately.</p></div></body></html>""",
+        subtype="html"
+    )
+    try:
+        with smtplib.SMTP(host, port, timeout=10) as smtp:
+            if use_tls:
+                smtp.starttls()
+            if username:
+                smtp.login(username, password or "")
+            smtp.send_message(message)
+        return True
+    except (smtplib.SMTPException, OSError, TimeoutError) as error:
+        app.logger.error("Password changed email failed: %s", error)
+        return False
+
+
+def verification_serializer():
+    return URLSafeTimedSerializer(app.config["SECRET_KEY"], salt="fileflow-email-verification")
+
+
+def send_verification_email(email, verify_url):
+    host = os.environ.get("FILEFLOW_SMTP_HOST")
+    port = int(os.environ.get("FILEFLOW_SMTP_PORT", "587"))
+    username = os.environ.get("FILEFLOW_SMTP_USERNAME")
+    password = os.environ.get("FILEFLOW_SMTP_PASSWORD")
+    sender = os.environ.get("FILEFLOW_SMTP_FROM", username)
+    use_tls = os.environ.get("FILEFLOW_SMTP_TLS", "true").lower() == "true"
+    if not host or not sender:
+        app.logger.warning("Email verification requested but SMTP is not configured.")
+        return False
+    message = EmailMessage()
+    message["Subject"] = "Verify your FileFlow email"
+    message["From"] = sender
+    message["To"] = email
+    message.set_content(
+        f"Welcome to FileFlow.\n\nVerify your email address: {verify_url}\n\n"
+        "This verification link expires in 24 hours."
+    )
+    message.set_alternative(
+        f"""<html><body style="margin:0;background:#f4f7fb;font-family:Arial,sans-serif">
+        <div style="max-width:560px;margin:32px auto;padding:28px;background:#fff;border-radius:16px;border:1px solid #e4e8f1">
+        <h1 style="color:#172033">Welcome to FileFlow</h1><p>Verify your email address to secure your account.</p>
+        <p><a href="{verify_url}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#6d7cf4;color:#fff;text-decoration:none;font-weight:bold">Verify email</a></p>
+        <p style="color:#718096;font-size:13px">This link expires in 24 hours.</p></div></body></html>""",
+        subtype="html"
+    )
+    try:
+        with smtplib.SMTP(host, port, timeout=10) as smtp:
+            if use_tls:
+                smtp.starttls()
+            if username:
+                smtp.login(username, password or "")
+            smtp.send_message(message)
+        return True
+    except (smtplib.SMTPException, OSError, TimeoutError) as error:
+        app.logger.error("Verification email failed: %s", error)
+        return False
+
+
 @app.route("/forgot-password", methods=["GET", "POST"])
+@app.route("/api/auth/forgot-password", methods=["POST"])
 def forgot_password():
     if request.method == "GET":
         return render_template("forgot_password.html")
@@ -523,6 +741,7 @@ def forgot_password():
 
 
 @app.route("/reset-password", methods=["GET", "POST"])
+@app.route("/api/auth/reset-password", methods=["POST"])
 def reset_password():
     token = str(request.args.get("token", "") if request.method == "GET" else (request.get_json(silent=True) or request.form).get("token", ""))
     if request.method == "GET":
@@ -573,15 +792,95 @@ def reset_password():
             "UPDATE password_reset_tokens SET used_at = ? WHERE id = ?",
             (datetime.now(timezone.utc).isoformat(), record["id"])
         )
+        connection.execute(
+            "UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL",
+            (datetime.now(timezone.utc).isoformat(), record["user_id"])
+        )
+        reset_user = connection.execute(
+            "SELECT email FROM users WHERE id = ?",
+            (record["user_id"],)
+        ).fetchone()
+    if reset_user:
+        send_password_changed_email(reset_user["email"])
     session.clear()
-    return jsonify({"message": "Password changed successfully.", "redirect": url_for("signin")})
+    return jsonify({"message": "Password changed successfully.", "redirect": "/signin"})
+
+
+@app.route("/verify-email", methods=["GET", "POST"])
+@app.route("/api/auth/verify-email", methods=["POST"])
+def verify_email():
+    token = str(request.args.get("token", "") if request.method == "GET" else (request.get_json(silent=True) or request.form).get("token", ""))
+    if request.method == "GET":
+        if not token:
+            return render_template("verify_email.html", state="invalid")
+        try:
+            payload = verification_serializer().loads(token, max_age=24 * 60 * 60)
+        except (BadSignature, SignatureExpired):
+            return render_template("verify_email.html", state="invalid")
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        with get_db() as connection:
+            record = connection.execute(
+                "SELECT id, user_id, expires_at, used_at FROM email_verification_tokens WHERE token_hash = ?",
+                (token_hash,)
+            ).fetchone()
+            if not record or record["used_at"] or record["expires_at"] < int(time.time()) or int(payload["uid"]) != record["user_id"]:
+                return render_template("verify_email.html", state="invalid")
+            connection.execute(
+                "UPDATE users SET email_verified = 1, updated_at = ? WHERE id = ?",
+                (datetime.now(timezone.utc).isoformat(), record["user_id"])
+            )
+            connection.execute(
+                "UPDATE email_verification_tokens SET used_at = ? WHERE id = ?",
+                (datetime.now(timezone.utc).isoformat(), record["id"])
+            )
+        return render_template("verify_email.html", state="success")
+
+    payload = request.get_json(silent=True) or request.form
+    token = str(payload.get("token", ""))
+    return redirect(url_for("verify_email", token=token))
+
+
+@app.route("/api/auth/resend-verification", methods=["POST"])
+@login_required
+def resend_verification():
+    user = current_user()
+    if user is None:
+        return jsonify({"error": "Sign in to resend verification."}), 401
+    token = verification_serializer().dumps({"uid": user["id"], "nonce": secrets.token_urlsafe(24)})
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    with get_db() as connection:
+        connection.execute(
+            "UPDATE email_verification_tokens SET used_at = ? WHERE user_id = ? AND used_at IS NULL",
+            (datetime.now(timezone.utc).isoformat(), user["id"])
+        )
+        connection.execute(
+            "INSERT INTO email_verification_tokens (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)",
+            (user["id"], token_hash, int(time.time()) + 24 * 60 * 60, datetime.now(timezone.utc).isoformat())
+        )
+    send_verification_email(user["email"], url_for("verify_email", token=token, _external=True))
+    return jsonify({"message": "If an account exists, a verification email will be sent."})
+
+
+@app.route("/api/auth/me")
+@login_required
+def api_auth_me():
+    user = current_user()
+    return jsonify({
+        "id": user["id"],
+        "name": user["full_name"],
+        "email": user["email"],
+        "created_at": user["created_at"],
+        "csrf_token": session.get("csrf_token")
+    })
 
 
 @app.route("/logout", methods=["POST"])
+@app.route("/api/auth/logout", methods=["POST"])
 @login_required
 def logout():
+    revoke_server_session()
     session.clear()
-    return jsonify({"redirect": url_for("signin")})
+    return jsonify({"redirect": "/signin"})
 
 
 @app.route("/profile")

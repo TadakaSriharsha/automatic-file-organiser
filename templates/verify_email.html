@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Email verification — FileFlow</title><link rel="stylesheet" href="/auth.css"></head>
+<body><main class="auth-shell"><section class="auth-card">
+  <div class="brand-row"><span class="brand-mark">FF</span><span class="brand-name">File<span>Flow</span></span></div>
+  {% if state == "success" %}<span class="auth-kicker">VERIFIED</span><h1>Email confirmed</h1><p class="auth-copy">Your FileFlow email address has been verified.</p><a class="auth-button" href="/dashboard" style="display:grid;place-items:center;text-decoration:none">Continue to dashboard</a>
+  {% else %}<span class="auth-kicker">VERIFICATION LINK</span><h1>Link unavailable</h1><p class="auth-copy">This verification link is invalid or has expired.</p>{% if session.user_id %}<button class="auth-button" id="resendButton" type="button">Resend verification email</button>{% else %}<a class="auth-button" href="/signin" style="display:grid;place-items:center;text-decoration:none">Sign in</a>{% endif %}<div class="auth-alert" id="alert"></div>{% endif %}
+</section></main>
+<script>const resend=document.getElementById("resendButton");if(resend){resend.addEventListener("click",async()=>{resend.disabled=true;const response=await fetch("/api/auth/resend-verification",{method:"POST",headers:{"X-CSRF-Token":"{{ session.csrf_token }}"}});const result=await response.json();const alert=document.getElementById("alert");alert.textContent=result.message||"Verification email sent.";alert.className="auth-alert success";resend.disabled=false;});}</script></body></html>

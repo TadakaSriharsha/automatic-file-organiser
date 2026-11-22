@@ -10,17 +10,30 @@ from templates.app import DOWNLOAD_FOLDER, app, download_organized_files
 
 class OrganizerTests(unittest.TestCase):
     def setUp(self):
-        self.metadata_directory = tempfile.TemporaryDirectory()
+        app_module.AUTH_RATE_LIMITS.clear()
+        self.metadata_directory = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         root = Path(self.metadata_directory.name)
         app_module.DOWNLOAD_FOLDER = root / "downloads"
         app_module.UPLOAD_FOLDER = root / "uploads"
         app_module.ORGANIZED_FOLDER = root / "organized"
         app_module.HISTORY_FILE = root / "activity_history.json"
         app_module.METADATA_FILE = Path(self.metadata_directory.name) / "library_metadata.json"
+        app_module.DATA_DIR = root / "data"
+        app_module.DATABASE_FILE = app_module.DATA_DIR / "fileflow.sqlite3"
+        app_module.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        app_module.init_database()
         app_module.DOWNLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
         app_module.UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
         app_module.ORGANIZED_FOLDER.mkdir(parents=True, exist_ok=True)
         self.client = app.test_client()
+        signup = self.client.post("/api/auth/signup", json={
+            "full_name": "Test User",
+            "email": "test@example.com",
+            "password": "SecurePass123",
+            "confirm_password": "SecurePass123",
+            "terms": True
+        })
+        self.assertEqual(signup.status_code, 200)
 
     def tearDown(self):
         self.metadata_directory.cleanup()
@@ -158,6 +171,93 @@ class OrganizerTests(unittest.TestCase):
         response = self.client.post("/organize", data={}, content_type="multipart/form-data")
         self.assertEqual(response.status_code, 400)
         self.assertIn("select files", response.json["error"].lower())
+
+    def test_landing_is_public_and_dashboard_requires_login(self):
+        anonymous = app.test_client()
+        self.assertEqual(anonymous.get("/").status_code, 200)
+        protected = anonymous.get("/dashboard")
+        self.assertEqual(protected.status_code, 302)
+        self.assertIn("/signin", protected.location)
+
+    def test_duplicate_registration_and_wrong_password_are_rejected(self):
+        duplicate = self.client.post("/api/auth/signup", json={
+            "full_name": "Duplicate",
+            "email": "test@example.com",
+            "password": "SecurePass123",
+            "confirm_password": "SecurePass123",
+            "terms": True
+        })
+        self.assertEqual(duplicate.status_code, 409)
+
+        anonymous = app.test_client()
+        wrong = anonymous.post("/api/auth/login", json={
+            "email": "test@example.com",
+            "password": "WrongPassword123"
+        })
+        self.assertEqual(wrong.status_code, 401)
+        self.assertNotIn("registered", wrong.json["error"].lower())
+
+    def test_logout_revokes_the_server_session(self):
+        logout = self.client.post("/api/auth/logout")
+        self.assertEqual(logout.status_code, 200)
+        dashboard = self.client.get("/dashboard")
+        self.assertEqual(dashboard.status_code, 302)
+
+    def test_forgot_password_uses_generic_response(self):
+        unknown = app.test_client().post("/api/auth/forgot-password", json={
+            "email": "unknown@example.com"
+        })
+        known = app.test_client().post("/api/auth/forgot-password", json={
+            "email": "test@example.com"
+        })
+        expected = "If an account exists"
+        self.assertIn(expected, unknown.json["message"])
+        self.assertIn(expected, known.json["message"])
+
+    def test_invalid_reset_token_is_rejected_and_valid_reset_changes_password(self):
+        anonymous = app.test_client()
+        with app_module.get_db() as connection:
+            user = connection.execute("SELECT id FROM users WHERE email = ?", ("test@example.com",)).fetchone()
+        token = app_module.reset_serializer().dumps({"uid": user["id"], "nonce": "test-reset"})
+        token_hash = __import__("hashlib").sha256(token.encode("utf-8")).hexdigest()
+        with app_module.get_db() as connection:
+            connection.execute(
+                "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)",
+                (user["id"], token_hash, __import__("time").time() + 1800, "2026-11-22")
+            )
+
+        invalid = anonymous.post("/api/auth/reset-password", json={
+            "token": "invalid-token",
+            "password": "NewSecurePass123",
+            "confirm_password": "NewSecurePass123"
+        })
+        self.assertEqual(invalid.status_code, 400)
+
+        reset = anonymous.post("/api/auth/reset-password", json={
+            "token": token,
+            "password": "NewSecurePass123",
+            "confirm_password": "NewSecurePass123"
+        })
+        self.assertEqual(reset.status_code, 200)
+
+    def test_users_cannot_access_another_users_file(self):
+        owned = self.organize([("private.txt", b"user one data")])
+        self.assertEqual(owned.status_code, 200)
+
+        second = app.test_client()
+        signup = second.post("/api/auth/signup", json={
+            "full_name": "Second User",
+            "email": "second@example.com",
+            "password": "SecurePass456",
+            "confirm_password": "SecurePass456",
+            "terms": True
+        })
+        self.assertEqual(signup.status_code, 200)
+
+        preview = second.get("/preview/Documents/private.txt")
+        download = second.get("/files/download/Documents/private.txt")
+        self.assertEqual(preview.status_code, 404)
+        self.assertEqual(download.status_code, 404)
 
 
 if __name__ == "__main__":

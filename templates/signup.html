@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create account — FileFlow</title><link rel="stylesheet" href="/auth.css"></head>
+<body><main class="auth-shell"><section class="auth-card">
+  <div class="brand-row"><span class="brand-mark">FF</span><span class="brand-name">File<span>Flow</span></span></div>
+  <span class="auth-kicker">YOUR PRIVATE WORKSPACE</span><h1>Create account</h1><p class="auth-copy">Start organizing files in your own secure workspace.</p>
+  <div class="auth-alert" id="alert"></div>
+  <form id="signupForm">
+    <div class="field"><label for="full_name">Full name</label><input id="full_name" name="full_name" autocomplete="name" required></div>
+    <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="password">Password</label><div class="password-wrap"><input id="password" name="password" type="password" autocomplete="new-password" required minlength="10"><button class="password-toggle" type="button" data-password="password">Show</button></div><div class="password-strength" id="strength"><span></span><span></span><span></span><span></span></div><small class="strength-label" id="strengthLabel">Use 10+ characters</small></div>
+    <div class="field"><label for="confirm_password">Confirm password</label><div class="password-wrap"><input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required><button class="password-toggle" type="button" data-password="confirm_password">Show</button></div></div>
+    <label class="check-row" style="margin-bottom:16px"><input name="terms" type="checkbox" required> I agree to the Terms and Privacy Policy.</label>
+    <button class="auth-button" id="submitButton" type="submit">Create account</button>
+  </form>
+  <div class="auth-divider"></div><p class="auth-footer">Already have an account? <a class="auth-link" href="/signin">Sign in</a></p>
+</section></main>
+<script>
+document.querySelectorAll("[data-password]").forEach(button=>button.addEventListener("click",()=>{const input=document.getElementById(button.dataset.password);input.type=input.type==="password"?"text":"password";button.textContent=input.type==="password"?"Show":"Hide";}));
+const password=document.getElementById("password"),bars=[...document.querySelectorAll("#strength span")],label=document.getElementById("strengthLabel");
+password.addEventListener("input",()=>{const value=password.value;let score=0;if(value.length>=10)score++;if(/[a-z]/.test(value)&&/[A-Z]/.test(value))score++;if(/\d/.test(value))score++;if(/[^A-Za-z0-9]/.test(value)&&value.length>=12)score++;const names=["Weak","Fair","Good","Strong"];const classes=["weak","fair","good","strong"];bars.forEach((bar,index)=>{bar.className=index<score?"active "+classes[index]: "";});label.textContent=score?names[score-1]+" password":"Use 10+ characters";});
+const form=document.getElementById("signupForm"),alertBox=document.getElementById("alert"),button=document.getElementById("submitButton");
+form.addEventListener("submit",async event=>{event.preventDefault();if(button.disabled)return;alertBox.className="auth-alert";button.disabled=true;button.textContent="Creating account…";const data=Object.fromEntries(new FormData(form));try{const response=await fetch("/api/auth/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error||"Unable to create account.");window.location.assign(result.redirect||"/dashboard");}catch(error){alertBox.textContent=error.message;alertBox.className="auth-alert error";button.disabled=false;button.textContent="Create account";}});
+</script></body></html>

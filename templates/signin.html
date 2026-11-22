@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in — FileFlow</title><link rel="stylesheet" href="/auth.css"></head>
+<body><main class="auth-shell"><section class="auth-card">
+  <div class="brand-row"><span class="brand-mark">FF</span><span class="brand-name">File<span>Flow</span></span></div>
+  <span class="auth-kicker">WELCOME BACK</span><h1>Sign in</h1><p class="auth-copy">Access your private FileFlow workspace.</p>
+  <div class="auth-alert" id="alert"></div>
+  <form id="signinForm">
+    <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="password">Password</label><div class="password-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required><button class="password-toggle" type="button" data-password="password">Show</button></div></div>
+    <div class="auth-options"><label class="check-row"><input name="remember" type="checkbox"> Remember me</label><a class="auth-link" href="/forgot-password">Forgot password?</a></div>
+    <button class="auth-button" id="submitButton" type="submit">Sign in</button>
+  </form>
+  <div class="auth-divider"></div><p class="auth-footer">New to FileFlow? <a class="auth-link" href="/signup">Create an account</a></p>
+</section></main>
+<script>
+document.querySelectorAll("[data-password]").forEach(button=>button.addEventListener("click",()=>{const input=document.getElementById(button.dataset.password);input.type=input.type==="password"?"text":"password";button.textContent=input.type==="password"?"Show":"Hide";}));
+const form=document.getElementById("signinForm"),alertBox=document.getElementById("alert"),button=document.getElementById("submitButton");
+form.addEventListener("submit",async event=>{event.preventDefault();if(button.disabled)return;alertBox.className="auth-alert";button.disabled=true;button.textContent="Signing in…";const data=Object.fromEntries(new FormData(form));try{const response=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error||"Unable to sign in.");window.location.assign(result.redirect||"/dashboard");}catch(error){alertBox.textContent=error.message;alertBox.className="auth-alert error";button.disabled=false;button.textContent="Sign in";}});
+</script></body></html>

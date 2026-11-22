@@ -188,7 +188,10 @@ async function bulkUpdate(action, value = null) {
   try {
     const response = await fetch("/api/files/bulk", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || ""
+      },
       body: JSON.stringify({
         action,
         value,
@@ -460,6 +463,7 @@ async function applyOrganization() {
 
   const request = new XMLHttpRequest();
   request.open("POST","/organize");
+  request.setRequestHeader("X-CSRF-Token", document.querySelector('meta[name="csrf-token"]')?.content || "");
   request.timeout = 60000;
   request.upload.onprogress = event => {
     if (!event.lengthComputable) return;

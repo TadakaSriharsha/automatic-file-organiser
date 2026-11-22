@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Profile — FileFlow</title><link rel="stylesheet" href="/auth.css"></head>
+<body><main class="auth-shell"><section class="auth-card profile-card">
+  <div class="brand-row"><span class="brand-mark">FF</span><span class="brand-name">File<span>Flow</span></span></div>
+  <div class="profile-head"><div class="profile-avatar">{{ user.name[:1] | upper }}</div><div><span class="auth-kicker">YOUR ACCOUNT</span><h1 id="profileName">{{ user.name }}</h1><p class="auth-copy">{{ user.email }}</p></div></div>
+  <div class="profile-row"><span>Email</span><strong>{{ user.email }}</strong></div><div class="profile-row"><span>Created</span><strong>{{ user.created_at[:10] }}</strong></div>
+  <div class="auth-alert" id="alert"></div>
+  <form id="profileForm" style="margin-top:16px"><div class="field"><label for="name">Full name</label><input id="name" name="name" value="{{ user.name }}" autocomplete="name"></div><button class="auth-button" id="saveButton" type="submit">Save profile</button></form>
+  <div class="profile-actions"><a class="auth-button" href="/dashboard" style="border:1px solid var(--auth-border);background:var(--auth-panel)">Back to dashboard</a><button class="auth-button" id="logoutButton" type="button" style="background:linear-gradient(135deg,#a855f7,#4f46e5)">Log out</button></div>
+</section></main>
+<script>
+function csrfHeaders(extra={}){return {...extra,"X-CSRF-Token":"{{ session.csrf_token }}"};}
+const form=document.getElementById("profileForm"),alert=document.getElementById("alert");
+form.addEventListener("submit",async event=>{event.preventDefault();const button=document.getElementById("saveButton");button.disabled=true;const data=Object.fromEntries(new FormData(form));try{const response=await fetch("/api/profile",{method:"PATCH",headers:csrfHeaders({"Content-Type":"application/json"}),body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error||"Unable to update profile.");document.getElementById("profileName").textContent=result.name;alert.textContent=result.message;alert.className="auth-alert success";}catch(error){alert.textContent=error.message;alert.className="auth-alert error";}finally{button.disabled=false;}});
+document.getElementById("logoutButton").addEventListener("click",async()=>{const response=await fetch("/api/auth/logout",{method:"POST",headers:csrfHeaders()});const result=await response.json();window.location.assign(result.redirect||"/signin");});
+</script></body></html>
