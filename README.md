@@ -17,7 +17,7 @@ Open the local address printed by Flask. Uploads are limited to 20 MB total and 
 
 FileFlow uses SQLite for local users and server-tracked sessions. Set `FILEFLOW_SECRET_KEY` to a persistent random value. Without it, restarts invalidate existing sessions.
 
-Copy `.env.example` to `.env` and configure the SMTP variables to enable verification and password-reset email. The free Render plan uses ephemeral `/tmp` storage, so users and files may be lost whenever Render restarts or redeploys the service. Persistent users and files require a paid Render disk plan.
+Copy `.env.example` to `.env` and configure either Resend or SMTP to enable verification and password-reset email. The free Render plan uses ephemeral `/tmp` storage, so users and files may be lost whenever Render restarts or redeploys the service. Persistent users and files require a paid Render disk plan.
 
 Required production settings:
 
@@ -29,6 +29,7 @@ Required production settings:
 - `FILEFLOW_SMTP_USERNAME`
 - `FILEFLOW_SMTP_PASSWORD`
 - `FILEFLOW_SMTP_FROM`
+- `RESEND_API_KEY` or the SMTP settings above
 
 ## Run tests
 

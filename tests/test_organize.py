@@ -3,6 +3,7 @@ import zipfile
 import tempfile
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 import templates.app as app_module
 from templates.app import DOWNLOAD_FOLDER, app, download_organized_files
@@ -207,12 +208,30 @@ class OrganizerTests(unittest.TestCase):
         unknown = app.test_client().post("/api/auth/forgot-password", json={
             "email": "unknown@example.com"
         })
-        known = app.test_client().post("/api/auth/forgot-password", json={
-            "email": "test@example.com"
-        })
+        with patch.object(app_module, "send_reset_email", return_value=True) as sender:
+            known = app.test_client().post("/api/auth/forgot-password", json={
+                "email": "test@example.com"
+            })
         expected = "If an account exists"
         self.assertIn(expected, unknown.json["message"])
         self.assertIn(expected, known.json["message"])
+        sender.assert_called_once()
+
+    def test_health_reports_unconfigured_email_delivery_without_secrets(self):
+        with patch.dict("os.environ", {}, clear=True):
+            response = app.test_client().get("/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["email_delivery"], "not_configured")
+
+    def test_resend_delivery_requires_api_key_and_sender(self):
+        with patch.dict("os.environ", {}, clear=True):
+            sent = app_module.send_via_resend(
+                "test@example.com",
+                "Subject",
+                "Text",
+                "<p>Text</p>"
+            )
+        self.assertFalse(sent)
 
     def test_invalid_reset_token_is_rejected_and_valid_reset_changes_password(self):
         anonymous = app.test_client()

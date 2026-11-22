@@ -8,6 +8,8 @@ import sqlite3
 import tempfile
 import time
 import zipfile
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 from email.message import EmailMessage
@@ -462,7 +464,15 @@ def build_stats():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "service": "FileFlow"})
+    resend_configured = bool(os.environ.get("RESEND_API_KEY") and (
+        os.environ.get("FILEFLOW_SMTP_FROM") or os.environ.get("FILEFLOW_EMAIL_FROM")
+    ))
+    smtp_configured = bool(os.environ.get("FILEFLOW_SMTP_HOST") and os.environ.get("FILEFLOW_SMTP_FROM"))
+    return jsonify({
+        "status": "ok",
+        "service": "FileFlow",
+        "email_delivery": "resend" if resend_configured else ("smtp" if smtp_configured else "not_configured")
+    })
 
 
 @app.route("/auth.css")
@@ -583,7 +593,56 @@ def signup():
     })
 
 
+def email_delivery_configured():
+    return bool(os.environ.get("RESEND_API_KEY") or (
+        os.environ.get("FILEFLOW_SMTP_HOST")
+        and os.environ.get("FILEFLOW_SMTP_FROM")
+    ))
+
+
+def send_via_resend(to_email, subject, text_body, html_body):
+    api_key = os.environ.get("RESEND_API_KEY")
+    sender = os.environ.get("FILEFLOW_SMTP_FROM") or os.environ.get("FILEFLOW_EMAIL_FROM")
+    if not api_key or not sender:
+        return False
+    payload = json.dumps({
+        "from": sender,
+        "to": [to_email],
+        "subject": subject,
+        "text": text_body,
+        "html": html_body
+    }).encode("utf-8")
+    request_object = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        },
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(request_object, timeout=15) as response:
+            return 200 <= response.status < 300
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as error:
+        app.logger.error("Resend email delivery failed: %s", error)
+        return False
+
+
 def send_reset_email(email, reset_url):
+    subject = "Reset your FileFlow password"
+    text_body = (
+        "We received a request to reset your FileFlow password.\n\n"
+        f"Reset your password: {reset_url}\n\n"
+        "This link expires in 30 minutes. If you did not request it, you can ignore this email."
+    )
+    html_body = f"""<html><body style="margin:0;background:#f4f7fb;font-family:Arial,sans-serif">
+        <div style="max-width:560px;margin:32px auto;padding:28px;background:#fff;border-radius:16px;border:1px solid #e4e8f1">
+        <h1 style="color:#172033">FileFlow</h1><p>We received a request to reset your password.</p>
+        <p><a href="{reset_url}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#6d7cf4;color:#fff;text-decoration:none;font-weight:bold">Reset password</a></p>
+        <p style="color:#718096;font-size:13px">This link expires in 30 minutes. If you did not request it, you can ignore this email.</p></div></body></html>"""
+    if send_via_resend(email, subject, text_body, html_body):
+        return True
     host = os.environ.get("FILEFLOW_SMTP_HOST")
     port = int(os.environ.get("FILEFLOW_SMTP_PORT", "587"))
     username = os.environ.get("FILEFLOW_SMTP_USERNAME")
@@ -625,6 +684,14 @@ def send_reset_email(email, reset_url):
 
 
 def send_password_changed_email(email):
+    subject = "Your FileFlow password was changed"
+    text_body = "Your FileFlow password was changed. If you did not make this change, reset your password immediately."
+    html_body = """<html><body style="margin:0;background:#f4f7fb;font-family:Arial,sans-serif">
+        <div style="max-width:560px;margin:32px auto;padding:28px;background:#fff;border-radius:16px;border:1px solid #e4e8f1">
+        <h1 style="color:#172033">FileFlow security notice</h1><p>Your FileFlow password was changed.</p>
+        <p style="color:#718096;font-size:13px">If you did not make this change, reset your password immediately.</p></div></body></html>"""
+    if send_via_resend(email, subject, text_body, html_body):
+        return True
     host = os.environ.get("FILEFLOW_SMTP_HOST")
     port = int(os.environ.get("FILEFLOW_SMTP_PORT", "587"))
     username = os.environ.get("FILEFLOW_SMTP_USERNAME")
@@ -664,6 +731,15 @@ def verification_serializer():
 
 
 def send_verification_email(email, verify_url):
+    subject = "Verify your FileFlow email"
+    text_body = f"Welcome to FileFlow.\n\nVerify your email address: {verify_url}\n\nThis verification link expires in 24 hours."
+    html_body = f"""<html><body style="margin:0;background:#f4f7fb;font-family:Arial,sans-serif">
+        <div style="max-width:560px;margin:32px auto;padding:28px;background:#fff;border-radius:16px;border:1px solid #e4e8f1">
+        <h1 style="color:#172033">Welcome to FileFlow</h1><p>Verify your email address to secure your account.</p>
+        <p><a href="{verify_url}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#6d7cf4;color:#fff;text-decoration:none;font-weight:bold">Verify email</a></p>
+        <p style="color:#718096;font-size:13px">This link expires in 24 hours.</p></div></body></html>"""
+    if send_via_resend(email, subject, text_body, html_body):
+        return True
     host = os.environ.get("FILEFLOW_SMTP_HOST")
     port = int(os.environ.get("FILEFLOW_SMTP_PORT", "587"))
     username = os.environ.get("FILEFLOW_SMTP_USERNAME")
@@ -733,7 +809,8 @@ def forgot_password():
                     (user["id"], token_hash)
                 )
             reset_url = url_for("reset_password", token=token, _external=True)
-            send_reset_email(user["email"], reset_url)
+            if not send_reset_email(user["email"], reset_url):
+                app.logger.warning("Password reset delivery failed for user id %s.", user["id"])
 
     return jsonify({
         "message": "If an account exists with this email, you'll receive a password reset link shortly."
