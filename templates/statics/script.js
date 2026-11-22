@@ -356,6 +356,10 @@ function applyTheme(theme) {
 
 document.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", () => navigate(item.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.go)));
+$("headerUploadBtn").addEventListener("click", () => {
+  navigate("organize");
+  setTimeout(() => $("fileInput").click(), 0);
+});
 $("sidebarCollapse").addEventListener("click", () => $("sidebar").classList.toggle("collapsed"));
 $("mobileMenu").addEventListener("click", () => $("sidebar").classList.add("open"));
 $("sidebarBackdrop").addEventListener("click", () => $("sidebar").classList.remove("open"));
@@ -366,6 +370,9 @@ $("themeSetting").checked = false;
 ["dragenter","dragover"].forEach(name => $("dropZone").addEventListener(name, event => { event.preventDefault(); $("dropZone").classList.add("drag-over"); }));
 $("dropZone").addEventListener("dragleave", () => $("dropZone").classList.remove("drag-over"));
 $("dropZone").addEventListener("drop", event => { event.preventDefault(); $("dropZone").classList.remove("drag-over"); addFiles(event.dataTransfer.files); });
+$("dropZone").addEventListener("click", event => {
+  if (!event.target.closest("label")) $("fileInput").click();
+});
 $("dropZone").addEventListener("keydown", event => { if (event.key==="Enter" || event.key===" ") $("fileInput").click(); });
 $("fileInput").addEventListener("change", event => { addFiles(event.target.files); event.target.value = ""; });
 $("folderInput").addEventListener("change", event => { addFiles(event.target.files); event.target.value = ""; });
