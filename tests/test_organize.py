@@ -35,6 +35,7 @@ class OrganizerTests(unittest.TestCase):
             "terms": True
         })
         self.assertEqual(signup.status_code, 200)
+        self.client.environ_base["HTTP_X_CSRF_TOKEN"] = signup.json["csrf_token"]
 
     def tearDown(self):
         self.metadata_directory.cleanup()
@@ -247,6 +248,16 @@ class OrganizerTests(unittest.TestCase):
         protected = anonymous.get("/dashboard")
         self.assertEqual(protected.status_code, 302)
         self.assertIn("/signin", protected.location)
+
+    def test_authenticated_mutations_require_a_valid_csrf_token(self):
+        response = self.client.post(
+            "/organize",
+            data={},
+            content_type="multipart/form-data",
+            headers={"X-CSRF-Token": ""}
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("security token", response.json["error"].lower())
 
     def test_duplicate_registration_and_wrong_password_are_rejected(self):
         duplicate = self.client.post("/api/auth/signup", json={

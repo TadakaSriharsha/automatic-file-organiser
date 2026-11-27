@@ -158,7 +158,14 @@ def validate_csrf_and_origin():
         if origin.rstrip("/") not in allowed:
             return jsonify({"error": "Cross-origin request blocked."}), 403
     csrf_header = request.headers.get("X-CSRF-Token")
-    if csrf_header and session.get("csrf_token") and not secrets.compare_digest(csrf_header, session["csrf_token"]):
+    csrf_token = session.get("csrf_token")
+    if session.get("session_id") and (
+        not csrf_header
+        or not csrf_token
+        or not secrets.compare_digest(csrf_header, csrf_token)
+    ):
+        return jsonify({"error": "Invalid security token."}), 403
+    if csrf_header and csrf_token and not secrets.compare_digest(csrf_header, csrf_token):
         return jsonify({"error": "Invalid security token."}), 403
     return None
 
