@@ -1115,6 +1115,59 @@ def api_files():
     })
 
 
+@app.route("/api/files/rename", methods=["POST"])
+@login_required
+def rename_file():
+    payload = request.get_json(silent=True) or {}
+    relative_path = payload.get("path")
+    name = payload.get("name")
+    if (
+        not isinstance(relative_path, str)
+        or not isinstance(name, str)
+        or not name.strip()
+        or len(name) > 200
+        or name in {".", ".."}
+        or name.endswith(".")
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _().-]*", name)
+        or name.split(".", 1)[0].upper() in {
+            "CON", "PRN", "AUX", "NUL",
+            *(f"COM{index}" for index in range(1, 10)),
+            *(f"LPT{index}" for index in range(1, 10))
+        }
+    ):
+        return jsonify({"error": "Choose a valid filename without a folder path."}), 400
+    workspace = current_workspace()
+    organized_root = workspace / "organized"
+    source = (organized_root / relative_path).resolve()
+    if not is_within_directory(organized_root, source) or not source.is_file():
+        return jsonify({"error": "File not found."}), 404
+    destination = source.with_name(name)
+    if destination.exists():
+        return jsonify({"error": "A file with that name already exists here."}), 409
+    try:
+        source.rename(destination)
+    except OSError:
+        app.logger.exception("Could not rename a workspace file.")
+        return jsonify({"error": "Could not rename the file."}), 500
+    metadata = load_metadata(workspace)
+    update_metadata_path(
+        metadata,
+        relative_path,
+        destination.relative_to(organized_root).as_posix()
+    )
+    if not save_metadata(metadata, workspace):
+        try:
+            destination.rename(source)
+        except OSError:
+            app.logger.exception("Could not roll back a file rename after metadata save failed.")
+        return jsonify({"error": "Could not save file metadata."}), 500
+    return jsonify({
+        "message": "File renamed.",
+        "path": destination.relative_to(organized_root).as_posix(),
+        "filename": destination.name
+    })
+
+
 @app.route("/api/folders", methods=["GET", "POST"])
 @login_required
 def api_folders():
@@ -1409,10 +1462,17 @@ def download_library_file(relative_path):
 @app.route("/preview/<path:relative_path>")
 @login_required
 def preview_file(relative_path):
-    organized_folder = current_workspace() / "organized"
+    workspace = current_workspace()
+    organized_folder = workspace / "organized"
     target = (organized_folder / relative_path).resolve()
     if not is_within_directory(organized_folder, target) or not target.is_file():
         return jsonify({"error": "File not found."}), 404
+    if request.args.get("opened") == "1":
+        metadata = load_metadata(workspace)
+        item = metadata["files"].setdefault(relative_path, {})
+        item["last_opened"] = datetime.now(timezone.utc).isoformat()
+        if not save_metadata(metadata, workspace):
+            return jsonify({"error": "Could not update file activity."}), 500
     extension = target.suffix.lower()
     if extension in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"}:
         return send_from_directory(str(organized_folder), relative_path)
