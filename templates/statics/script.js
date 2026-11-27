@@ -224,10 +224,10 @@ function updateBulkBar() {
   const visibleCount = selectedFiles.size;
   $("bulkBar").hidden = visibleCount === 0;
   $("selectedCount").textContent = `${visibleCount} selected`;
-  const visiblePaths = new Set(organizedFiles.map(file => file.relative_path));
+  const visiblePaths = new Set([...$("fileExplorer").querySelectorAll(".file-select input")].map(input => input.closest(".file-tile")?.dataset.path).filter(Boolean));
   const visibleSelected = [...selectedFiles].filter(path => visiblePaths.has(path)).length;
-  $("selectAllFiles").checked = visibleSelected > 0 && visibleSelected === organizedFiles.length;
-  $("selectAllFiles").indeterminate = visibleSelected > 0 && visibleSelected < organizedFiles.length;
+  $("selectAllFiles").checked = visibleSelected > 0 && visibleSelected === visiblePaths.size;
+  $("selectAllFiles").indeterminate = visibleSelected > 0 && visibleSelected < visiblePaths.size;
 }
 
 async function bulkUpdate(action, value = null) {
@@ -248,7 +248,7 @@ async function bulkUpdate(action, value = null) {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not update selected files");
     showToast(data.message);
-    await loadFiles();
+    await Promise.all([loadFiles(), loadStats(), loadFolders(), loadTrash()]);
   } catch (error) {
     showToast(error.message);
   }
@@ -259,22 +259,28 @@ function openConfirm(title, message, fieldType, callback) {
   $("confirmModalMessage").textContent = message;
   const field = $("confirmModalField");
   field.replaceChildren();
-  if (fieldType === "tag" || fieldType === "collection") {
+  if (fieldType === "tag" || fieldType === "collection" || fieldType === "name") {
     const input = document.createElement("input");
     input.type = "text";
-    input.placeholder = fieldType === "tag" ? "Tag name" : "Collection name";
-    input.maxLength = fieldType === "tag" ? 40 : 50;
+    input.placeholder = fieldType === "tag" ? "Tag name" : fieldType === "name" ? "New name" : "Collection name";
+    input.maxLength = fieldType === "tag" ? 40 : fieldType === "name" ? 200 : 50;
     field.appendChild(input);
+  } else if (fieldType === "folder") {
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "Destination folder");
+    folders.forEach(folder => select.add(new Option(folder.name, folder.name)));
+    field.appendChild(select);
   }
   confirmAction = callback;
   $("confirmModal").hidden = false;
-  const input = field.querySelector("input");
-  if (input) setTimeout(() => input.focus(), 0);
+  const control = field.querySelector("input, select");
+  if (control) setTimeout(() => control.focus(), 0);
 }
 
 async function openFilePreview(file) {
   lastPreviewFile = file;
-  $("previewModal").hidden = false;
+  file.last_opened = new Date().toISOString();
+  $("filePreviewModal").hidden = false;
   $("previewModalTitle").textContent = file.filename;
   $("previewModalMeta").innerHTML = `<span>${escapeHtml(file.category)}</span><span>${escapeHtml(file.size_label)}</span><span>${escapeHtml(file.relative_path)}</span>`;
   $("previewFavoriteBtn").textContent = file.favorite ? "★ Favorited" : "☆ Favorite";
@@ -284,17 +290,17 @@ async function openFilePreview(file) {
 
   if (file.preview_type === "image") {
     const image = document.createElement("img");
-    image.src = `/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}`;
+    image.src = `/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}?opened=1`;
     image.alt = file.filename;
     body.appendChild(image);
   } else if (file.preview_type === "pdf") {
     const frame = document.createElement("iframe");
-    frame.src = `/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}`;
+    frame.src = `/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}?opened=1`;
     frame.title = file.filename;
     body.appendChild(frame);
   } else if (file.preview_type === "text") {
     try {
-      const response = await fetch(`/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}`);
+      const response = await fetch(`/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}?opened=1`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not preview this file");
       const pre = document.createElement("pre");
@@ -334,13 +340,17 @@ function renderExplorer() {
       (dateFilter === "today" && age < 24 * 60 * 60 * 1000) ||
       (dateFilter === "week" && age < 7 * 24 * 60 * 60 * 1000) ||
       (dateFilter === "month" && age < 30 * 24 * 60 * 60 * 1000);
-    return matchesSearch &&
+    const matchesPage = activeFileFilter === "favorites"
+      ? file.favorite
+      : activeFileFilter === "recent" ? Boolean(file.last_opened) : true;
+    return matchesPage && matchesSearch &&
       (category === "all" || file.category === category) &&
       (extension === "all" || fileExtension === extension) &&
       matchesSize &&
       matchesDate;
   });
   files.sort((a,b) => {
+    if (activeFileFilter === "recent") return new Date(b.last_opened)-new Date(a.last_opened);
     if (sort === "name") return a.filename.localeCompare(b.filename);
     if (sort === "size-desc") return b.size-a.size;
     if (sort === "size-asc") return a.size-b.size;
@@ -350,13 +360,15 @@ function renderExplorer() {
   const grid = $("fileExplorer");
   grid.replaceChildren();
   if (!files.length) {
-    grid.innerHTML = '<div class="empty-state"><div><strong>No files match these filters</strong><p>Clear a filter or upload more files to continue.</p></div></div>';
+    const emptyMessage = activeFileFilter === "favorites" ? "No favorite files yet" : activeFileFilter === "recent" ? "No recently opened files yet" : "No files match these filters";
+    grid.innerHTML = `<div class="empty-state"><div><strong>${emptyMessage}</strong><p>Clear a filter or upload more files to continue.</p></div></div>`;
     updateBulkBar();
     return;
   }
   files.forEach(file => {
     const tile = document.createElement("article");
     tile.className = `file-tile${selectedFiles.has(file.relative_path) ? " selected" : ""}`;
+    tile.dataset.path = file.relative_path;
     const preview = file.preview_type === "image"
       ? `<img src="/preview/${encodeURIComponent(file.relative_path).replace(/%2F/g, "/")}" alt="" loading="lazy">`
       : fileIcon(file.filename);
@@ -414,6 +426,96 @@ function renderHistory() {
     row.innerHTML = `<span class="history-status">✓</span><div><strong>${run.files_organized} files organized</strong><p>${run.filenames?.join(", ") || run.categories_created?.join(", ") || "Organization completed"}</p></div><time>${new Date(run.date).toLocaleString()}</time>`;
     container.appendChild(row);
   });
+}
+
+function renderFolders() {
+  const container = $("folderList");
+  container.replaceChildren();
+  if (!folders.length) {
+    container.innerHTML = '<div class="empty-state"><div><strong>No folders yet</strong><p>Create a folder to group related files.</p></div></div>';
+    return;
+  }
+  folders.forEach(folder => {
+    const row = document.createElement("article");
+    row.className = "folder-row";
+    row.innerHTML = `<span class="folder-row-icon">▱</span><div><strong>${escapeHtml(folder.name)}</strong><small>${folder.files} files · ${formatBytes(folder.size)}</small></div><div class="folder-actions"><button class="secondary-button folder-rename" type="button">Rename</button><button class="danger-button folder-delete" type="button">Delete</button></div>`;
+    row.querySelector(".folder-rename").addEventListener("click", () => openConfirm(
+      "Rename folder",
+      `Rename "${folder.name}". Files inside stay in this folder.`,
+      "name",
+      name => name ? requestFolderRename(folder.name, name) : showToast("Enter a folder name")
+    ));
+    row.querySelector(".folder-delete").addEventListener("click", () => requestFolderDelete(folder.name));
+    container.appendChild(row);
+  });
+}
+
+function renderTrash(files) {
+  const container = $("trashList");
+  container.replaceChildren();
+  if (!files.length) {
+    container.innerHTML = '<div class="empty-state"><div><strong>Trash is empty</strong><p>Files you move to trash will appear here.</p></div></div>';
+    return;
+  }
+  files.forEach(file => {
+    const row = document.createElement("article");
+    row.className = "folder-row";
+    row.innerHTML = `<span class="folder-row-icon">▤</span><div><strong>${escapeHtml(file.filename)}</strong><small>${escapeHtml(file.original_path)} · deleted ${escapeHtml(new Date(file.deleted_at).toLocaleString())} · ${escapeHtml(file.size_label)}</small></div><div class="folder-actions"><button class="secondary-button restore-file" type="button">Restore</button><button class="danger-button delete-file" type="button">Delete permanently</button></div>`;
+    row.querySelector(".restore-file").addEventListener("click", () => updateTrashFile(file.id, "POST"));
+    row.querySelector(".delete-file").addEventListener("click", () => {
+      if (window.confirm(`Permanently delete "${file.filename}"? This cannot be undone.`)) updateTrashFile(file.id, "DELETE");
+    });
+    container.appendChild(row);
+  });
+}
+
+async function updateTrashFile(id, method) {
+  try {
+    const response = await fetch(`/api/trash/${encodeURIComponent(id)}`, {
+      method,
+      headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not update the file");
+    showToast(data.message);
+    await Promise.all([loadTrash(), loadFiles(), loadStats(), loadFolders()]);
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function requestFolderRename(oldName, name) {
+  try {
+    const response = await fetch(`/api/folders/${encodeURIComponent(oldName)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || ""
+      },
+      body: JSON.stringify({ name })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not rename folder");
+    showToast(data.message);
+    await Promise.all([loadFolders(), loadFiles()]);
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function requestFolderDelete(name) {
+  try {
+    const response = await fetch(`/api/folders/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+      headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not delete folder");
+    showToast(data.message);
+    await Promise.all([loadFolders(), loadStats()]);
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 function renderAnalytics() {
@@ -533,7 +635,7 @@ async function applyOrganization() {
       queuedFiles = [];
       updateQueue();
       $("organizationPreview").hidden = true;
-      Promise.all([loadStats(), loadFiles()]);
+      Promise.all([loadStats(), loadFiles(), loadFolders()]);
       setTimeout(() => { $("progressPanel").hidden = true; $("progressFill").style.width = "0%"; }, 900);
       return;
     }
@@ -615,12 +717,56 @@ $("selectAllFiles").addEventListener("change", event => {
     return matchesSearch && (category === "all" || file.category === category) &&
       (extension === "all" || extensionOf(file.filename) === extension) && matchesSize && matchesDate;
   });
+  visibleFiles = visibleFiles.filter(file => activeFileFilter === "favorites" ? file.favorite : activeFileFilter === "recent" ? Boolean(file.last_opened) : true);
   visibleFiles.forEach(file => event.target.checked ? selectedFiles.add(file.relative_path) : selectedFiles.delete(file.relative_path));
   renderExplorer();
 });
 $("clearSelectionBtn").addEventListener("click", () => { selectedFiles.clear(); renderExplorer(); });
 $("favoriteSelectedBtn").addEventListener("click", () => bulkUpdate("favorite"));
 $("unfavoriteSelectedBtn").addEventListener("click", () => bulkUpdate("unfavorite"));
+$("renameSelectedBtn").addEventListener("click", () => {
+  if (selectedFiles.size !== 1) {
+    showToast("Select exactly one file to rename");
+    return;
+  }
+  const path = [...selectedFiles][0];
+  const file = organizedFiles.find(item => item.relative_path === path);
+  if (!file) return;
+  openConfirm("Rename file", `Choose a new name for "${file.filename}".`, "name", async name => {
+    if (!name) return showToast("Enter a filename");
+    try {
+      const response = await fetch("/api/files/rename", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || ""
+        },
+        body: JSON.stringify({ path, name })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not rename file");
+      showToast(data.message);
+      selectedFiles.clear();
+      await Promise.all([loadFiles(), loadStats()]);
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+});
+$("moveSelectedBtn").addEventListener("click", () => {
+  if (!folders.length) {
+    showToast("Create a folder before moving files");
+    navigate("folders");
+    return;
+  }
+  openConfirm("Move files", "Move the selected files into this folder. Existing files will not be overwritten.", "folder", value => value && bulkUpdate("move", value));
+});
+$("trashSelectedBtn").addEventListener("click", () => openConfirm(
+  "Move to trash",
+  "The selected files can be restored later from Trash.",
+  null,
+  () => bulkUpdate("trash")
+));
 $("tagSelectedBtn").addEventListener("click", () => openConfirm(
   "Add tag",
   "A custom tag will be added to every selected file.",
@@ -635,8 +781,8 @@ $("collectionSelectedBtn").addEventListener("click", () => openConfirm(
 ));
 $("confirmCancelBtn").addEventListener("click", () => { confirmAction = null; $("confirmModal").hidden = true; });
 $("confirmApplyBtn").addEventListener("click", () => {
-  const input = $("confirmModalField").querySelector("input");
-  const value = input ? input.value.trim() : null;
+  const input = $("confirmModalField").querySelector("input, select");
+  const value = input ? (input.tagName === "SELECT" ? input.value : input.value.trim()) : null;
   const callback = confirmAction;
   confirmAction = null;
   $("confirmModal").hidden = true;
@@ -648,6 +794,27 @@ $("previewFavoriteBtn").addEventListener("click", () => {
   if (!lastPreviewFile) return;
   selectedFiles = new Set([lastPreviewFile.relative_path]);
   bulkUpdate(lastPreviewFile.favorite ? "unfavorite" : "favorite").then(() => { $("filePreviewModal").hidden = true; });
+});
+$("folderCreateForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const input = $("newFolderName");
+  try {
+    const response = await fetch("/api/folders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || ""
+      },
+      body: JSON.stringify({ name: input.value })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not create folder");
+    input.value = "";
+    showToast(data.message);
+    await Promise.all([loadFolders(), loadStats()]);
+  } catch (error) {
+    showToast(error.message);
+  }
 });
 window.addEventListener("keydown", event => {
   if (event.key === "Escape") {
@@ -693,4 +860,4 @@ $("skipDuplicates").checked = duplicatePreference;
 const gridPreference = localStorage.getItem("fileflow-grid-view");
 $("viewSetting").checked = gridPreference !== "false";
 
-Promise.all([loadStats(), loadFiles()]);
+Promise.all([loadStats(), loadFiles(), loadFolders(), loadTrash()]);

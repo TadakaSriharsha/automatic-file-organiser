@@ -164,6 +164,72 @@ class OrganizerTests(unittest.TestCase):
         self.assertEqual(file["collection"], "Work")
         self.assertIn("Work", files.json["collections"])
 
+    def test_custom_folders_move_rename_and_delete_files_without_overwriting(self):
+        organized = self.organize([("folder-item.txt", b"folder data")])
+        self.assertEqual(organized.status_code, 200)
+
+        created = self.client.post("/api/folders", json={"name": "Study Notes"})
+        self.assertEqual(created.status_code, 201)
+        moved = self.client.post("/api/files/bulk", json={
+            "paths": ["Documents/folder-item.txt"],
+            "action": "move",
+            "value": "Study Notes"
+        })
+        self.assertEqual(moved.status_code, 200)
+
+        renamed_folder = self.client.patch("/api/folders/Study%20Notes", json={"name": "Semester 1"})
+        self.assertEqual(renamed_folder.status_code, 200)
+        renamed_file = self.client.post("/api/files/rename", json={
+            "path": "Folders/Semester 1/folder-item.txt",
+            "name": "lecture notes.txt"
+        })
+        self.assertEqual(renamed_file.status_code, 200)
+
+        files = self.client.get("/api/files").json["files"]
+        file = next(item for item in files if item["filename"] == "lecture notes.txt")
+        self.assertEqual(file["relative_path"], "Folders/Semester 1/lecture notes.txt")
+        self.assertEqual(file["folder"], "Folders/Semester 1")
+        self.assertEqual(self.client.delete("/api/folders/Semester%201").status_code, 409)
+
+        moved_to_trash = self.client.post("/api/files/bulk", json={
+            "paths": [file["relative_path"]],
+            "action": "trash"
+        })
+        self.assertEqual(moved_to_trash.status_code, 200)
+        self.assertEqual(self.client.delete("/api/folders/Semester%201").status_code, 200)
+
+    def test_trash_restore_uses_a_safe_name_when_original_path_is_occupied(self):
+        self.assertEqual(self.organize([("restore.txt", b"first version")]).status_code, 200)
+        removed = self.client.post("/api/files/bulk", json={
+            "paths": ["Documents/restore.txt"],
+            "action": "trash"
+        })
+        self.assertEqual(removed.status_code, 200)
+        trashed = self.client.get("/api/trash").json["files"]
+        self.assertEqual(len(trashed), 1)
+
+        self.assertEqual(self.organize([("restore.txt", b"new version")]).status_code, 200)
+        restored = self.client.post(f"/api/trash/{trashed[0]['id']}")
+        self.assertEqual(restored.status_code, 200)
+
+        files = self.client.get("/api/files").json["files"]
+        self.assertEqual({item["relative_path"] for item in files}, {
+            "Documents/restore.txt",
+            "Documents/restore_1.txt"
+        })
+        current = self.client.get("/files/download/Documents/restore.txt")
+        restored_copy = self.client.get("/files/download/Documents/restore_1.txt")
+        self.assertEqual(current.data, b"new version")
+        self.assertEqual(restored_copy.data, b"first version")
+
+    def test_recently_opened_timestamp_is_persisted_per_file(self):
+        self.assertEqual(self.organize([("recent.txt", b"read me")]).status_code, 200)
+        preview = self.client.get("/preview/Documents/recent.txt?opened=1")
+        self.assertEqual(preview.status_code, 200)
+        files = self.client.get("/api/files").json["files"]
+        file = next(item for item in files if item["filename"] == "recent.txt")
+        self.assertTrue(file["last_opened"])
+
     def test_ai_routes_are_not_available(self):
         self.assertEqual(self.client.post("/ai-edit").status_code, 404)
         self.assertEqual(self.client.post("/ai-review").status_code, 404)
