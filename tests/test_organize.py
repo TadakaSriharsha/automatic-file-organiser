@@ -221,6 +221,8 @@ class OrganizerTests(unittest.TestCase):
         restored_copy = self.client.get("/files/download/Documents/restore_1.txt")
         self.assertEqual(current.data, b"new version")
         self.assertEqual(restored_copy.data, b"first version")
+        current.close()
+        restored_copy.close()
 
     def test_recently_opened_timestamp_is_persisted_per_file(self):
         self.assertEqual(self.organize([("recent.txt", b"read me")]).status_code, 200)

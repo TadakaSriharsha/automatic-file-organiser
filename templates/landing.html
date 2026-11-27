@@ -3,36 +3,114 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>FileFlow — Smart File Organizer</title>
+  <meta name="description" content="FileFlow gives you one private workspace to upload, organize, search, preview, and restore your files.">
+  <meta name="theme-color" content="#080b1b">
+  <title>FileFlow — A calmer place for your files</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/auth.css">
 </head>
-<body>
-  <main class="auth-shell">
-    <section class="landing-shell">
-      <div class="landing-copy">
-        <div class="brand-row"><span class="brand-mark">FF</span><span class="brand-name">File<span>Flow</span></span></div>
-        <span class="auth-kicker">PRIVATE SMART WORKSPACE</span>
-        <h1>Every file,<br><span>exactly in place.</span></h1>
-        <p>Organize uploads, find files instantly, and keep every workspace private. FileFlow combines a clean file manager with secure personal storage.</p>
-        <div class="landing-actions">
-          <a class="auth-button" href="/signin" style="display:grid;place-items:center;text-decoration:none">Sign in</a>
-          <a class="auth-button secondary" href="/signup" style="display:grid;place-items:center;text-decoration:none">Create account</a>
+<body class="landing-page">
+  <header class="site-header">
+    <a class="brand-row" href="/" aria-label="FileFlow home"><span class="brand-mark">FF</span><span class="brand-name">File<span>Flow</span></span></a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#security">Privacy</a>
+    </nav>
+    <div class="site-actions">
+      <a class="site-signin" href="/signin">Sign in</a>
+      <a class="site-cta" href="/signup">Get started <span aria-hidden="true">→</span></a>
+    </div>
+  </header>
+
+  <main>
+    <section class="landing-hero">
+      <div class="hero-copy">
+        <span class="hero-badge"><span></span> YOUR FILES, FINALLY IN FLOW</span>
+        <h1>A calmer place<br>for <span>all your files.</span></h1>
+        <p>Bring scattered files into one thoughtful workspace. FileFlow sorts, previews, and helps you find what you need—without taking control away from you.</p>
+        <div class="hero-actions">
+          <a class="site-cta" href="/signup">Create your free workspace <span aria-hidden="true">→</span></a>
+          <a class="hero-secondary" href="#features">Explore the workspace <span aria-hidden="true">↓</span></a>
         </div>
+        <div class="hero-proof"><span class="proof-check">✓</span> Private by default <span class="proof-dot">·</span> Originals stay untouched <span class="proof-dot">·</span> Restore from trash</div>
       </div>
-      <div class="landing-preview" aria-hidden="true">
-        <div class="preview-window">
-          <div class="preview-bar"><i></i><i></i><i></i></div>
-          <div class="preview-content">
-            <div class="preview-side"><span></span><span></span><span></span><span></span></div>
+
+      <div class="hero-visual" aria-label="Illustration of the FileFlow file workspace">
+        <div class="visual-glow"></div>
+        <div class="workspace-preview">
+          <div class="preview-topbar"><div class="preview-brand"><span class="preview-brand-mark">F</span> FileFlow</div><div class="preview-user"></div></div>
+          <div class="preview-layout">
+            <aside class="preview-sidebar"><span class="preview-nav active">◫ &nbsp; Overview</span><span class="preview-nav">▦ &nbsp; All files</span><span class="preview-nav">★ &nbsp; Favorites</span><span class="preview-nav">▱ &nbsp; Folders</span><span class="preview-nav">⌫ &nbsp; Trash</span></aside>
             <div class="preview-main">
-              <h3>Workspace overview</h3>
-              <div class="preview-stats"><div></div><div></div><div></div></div>
-              <div class="preview-files"><div></div><div></div><div></div></div>
+              <span class="preview-overline">YOUR WORKSPACE</span><h2>Everything in its place.</h2><p class="preview-subtitle">A clear view of your digital life.</p>
+              <div class="preview-summary">
+                <div><small>Library</small><span class="summary-icon violet">▦</span><strong>Your files</strong><i class="summary-line long"></i><i class="summary-line"></i></div>
+                <div><small>Storage</small><span class="summary-icon cyan">◉</span><strong>Usage overview</strong><i class="summary-line long"></i><i class="summary-line"></i></div>
+                <div><small>Workspace</small><span class="summary-icon amber">▱</span><strong>Quick access</strong><i class="summary-line long"></i><i class="summary-line"></i></div>
+              </div>
+              <div class="preview-files-head"><strong>Recently opened</strong><span>View library →</span></div>
+              <div class="preview-file-row"><span class="preview-file-icon purple">▤</span><div><strong>Project brief</strong><small>Documents · PDF</small></div><b>•••</b></div>
+              <div class="preview-file-row"><span class="preview-file-icon mint">▧</span><div><strong>Field notes</strong><small>Images · PNG</small></div><b>•••</b></div>
+              <div class="preview-file-row"><span class="preview-file-icon gold">⊞</span><div><strong>Budget overview</strong><small>Spreadsheets · XLSX</small></div><b>•••</b></div>
             </div>
           </div>
         </div>
+        <div class="visual-note"><span>✦</span><div><strong>Sorted as you upload</strong><small>Clear categories. No guesswork.</small></div></div>
       </div>
     </section>
+
+    <section class="feature-section" id="features">
+      <div class="section-intro"><span class="auth-kicker">A BETTER WAY TO WORK WITH FILES</span><h2>Less hunting.<br><span>More getting done.</span></h2><p>All the everyday essentials, thoughtfully brought together in one private workspace.</p></div>
+      <div class="feature-grid">
+        <article class="feature-card"><span class="feature-icon violet">↯</span><h3>Organize on arrival</h3><p>Upload a batch and FileFlow groups supported formats into clear categories. Review the plan before applying it.</p></article>
+        <article class="feature-card"><span class="feature-icon cyan">⌕</span><h3>Find files faster</h3><p>Search your library, filter by type and size, and return to recently opened or favorite files.</p></article>
+        <article class="feature-card"><span class="feature-icon mint">▱</span><h3>Make it yours</h3><p>Create personal folders, move and rename files, and add tags or collections to fit your workflow.</p></article>
+        <article class="feature-card"><span class="feature-icon gold">◉</span><h3>Preview before opening</h3><p>Take a quick look at supported images, PDFs, and text files without leaving your workspace.</p></article>
+        <article class="feature-card"><span class="feature-icon rose">↶</span><h3>Undo with confidence</h3><p>Move files to Trash instead of losing them. Restore a file when you need it back.</p></article>
+        <article class="feature-card"><span class="feature-icon blue">▥</span><h3>Understand your library</h3><p>See file types, storage use, and workspace activity using data from your own library.</p></article>
+      </div>
+    </section>
+
+    <section class="how-section" id="how-it-works">
+      <div class="section-intro"><span class="auth-kicker">A SIMPLE ROUTINE</span><h2>From scattered to <span>sorted.</span></h2></div>
+      <div class="steps-grid">
+        <article class="step-card"><span>01</span><h3>Bring files in</h3><p>Drag files into your workspace or choose a folder to upload.</p></article>
+        <article class="step-card"><span>02</span><h3>Review the plan</h3><p>See detected categories and duplicate matches before you confirm.</p></article>
+        <article class="step-card"><span>03</span><h3>Find your focus</h3><p>Browse, search, preview, and group files in a way that works for you.</p></article>
+      </div>
+    </section>
+
+    <section class="audience-section">
+      <div class="section-intro"><span class="auth-kicker">MADE FOR REAL WORK</span><h2>One workspace.<br><span>Many ways to use it.</span></h2></div>
+      <div class="audience-grid">
+        <article><span>✎</span><strong>Students & educators</strong><p>Keep class notes, handouts, and project work easy to find.</p></article>
+        <article><span>⌘</span><strong>Teams & small businesses</strong><p>Bring reports, presentations, and shared work into a clearer routine.</p></article>
+        <article><span>◇</span><strong>Developers & creators</strong><p>Separate code, assets, references, and deliverables without clutter.</p></article>
+        <article><span>✦</span><strong>Everyday organizers</strong><p>Make sense of downloads, photos, documents, and everything in between.</p></article>
+      </div>
+    </section>
+
+    <section class="privacy-section" id="security">
+      <div class="privacy-mark">✓</div>
+      <div><span class="auth-kicker">YOUR WORKSPACE IS YOURS</span><h2>Private by design.<br><span>Clear about your data.</span></h2><p>Your library is separated by account. Files are served through authenticated routes, and organization creates managed copies rather than overwriting your originals. Email verification and password recovery require a configured email provider.</p><a href="/signup" class="privacy-link">Set up your private workspace <span aria-hidden="true">→</span></a></div>
+    </section>
+
+    <section class="faq-section">
+      <div class="section-intro"><span class="auth-kicker">GOOD TO KNOW</span><h2>Questions, <span>answered.</span></h2></div>
+      <div class="faq-list">
+        <details><summary>Does FileFlow change my original files?</summary><p>No. Uploaded files are stored in your private FileFlow workspace and organized as copies. Files are never overwritten when names collide.</p></details>
+        <details><summary>What happens when I delete a file?</summary><p>Moving a file to Trash keeps it available for restore. Permanent deletion is a separate action and cannot be undone.</p></details>
+        <details><summary>What file types can I preview?</summary><p>FileFlow previews common image formats, PDFs, and supported text formats. Other files can still be downloaded.</p></details>
+        <details><summary>Are my files kept after a Render restart?</summary><p>The included free Render configuration uses ephemeral storage. Configure a persistent disk and point FILEFLOW_DATA_DIR and FILEFLOW_DB_PATH to it for durable production storage.</p></details>
+      </div>
+    </section>
+
+    <section class="final-cta"><span class="auth-kicker">MAKE SPACE FOR WHAT MATTERS</span><h2>Ready for a more organized day?</h2><p>Your files deserve a workspace that works as thoughtfully as you do.</p><a class="site-cta" href="/signup">Get started with FileFlow <span aria-hidden="true">→</span></a></section>
   </main>
+
+  <footer class="site-footer"><a class="brand-row" href="/"><span class="brand-mark">FF</span><span class="brand-name">File<span>Flow</span></span></a><span>Thoughtful file management, in one private workspace.</span><div><a href="/signin">Sign in</a><a href="/signup">Create account</a></div><small>© 2026 FileFlow</small></footer>
 </body>
 </html>

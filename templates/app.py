@@ -1142,6 +1142,12 @@ def rename_file():
     if not is_within_directory(organized_root, source) or not source.is_file():
         return jsonify({"error": "File not found."}), 404
     destination = source.with_name(name)
+    if destination == source:
+        return jsonify({
+            "message": "Filename unchanged.",
+            "path": relative_path,
+            "filename": source.name
+        })
     if destination.exists():
         return jsonify({"error": "A file with that name already exists here."}), 409
     try:
@@ -1361,6 +1367,7 @@ def bulk_update_files():
         if not is_within_directory(organized_folder, destination_folder) or not destination_folder.is_dir():
             return jsonify({"error": "Destination folder not found."}), 404
     updated = 0
+    physical_changes = []
     for relative_path in paths:
         if not isinstance(relative_path, str):
             continue
@@ -1374,6 +1381,7 @@ def bulk_update_files():
             except OSError:
                 app.logger.exception("Could not move a workspace file.")
                 continue
+            physical_changes.append((target, destination))
             update_metadata_path(
                 metadata,
                 relative_path,
@@ -1391,6 +1399,7 @@ def bulk_update_files():
             except OSError:
                 app.logger.exception("Could not move a workspace file to trash.")
                 continue
+            physical_changes.append((target, trashed_path))
             item_metadata = file_metadata.pop(relative_path, {})
             for members in metadata["collections"].values():
                 if isinstance(members, list) and relative_path in members:
@@ -1434,6 +1443,12 @@ def bulk_update_files():
         updated += 1
 
     if not save_metadata(metadata, workspace):
+        for original_path, current_path in reversed(physical_changes):
+            try:
+                original_path.parent.mkdir(parents=True, exist_ok=True)
+                current_path.replace(original_path)
+            except OSError:
+                app.logger.exception("Could not roll back a file operation after metadata save failed.")
         return jsonify({"error": "Could not save file metadata."}), 500
     return jsonify({"message": f"Updated {updated} file{'s' if updated != 1 else ''}.", "updated": updated})
 
@@ -1467,13 +1482,17 @@ def preview_file(relative_path):
     target = (organized_folder / relative_path).resolve()
     if not is_within_directory(organized_folder, target) or not target.is_file():
         return jsonify({"error": "File not found."}), 404
-    if request.args.get("opened") == "1":
+    extension = target.suffix.lower()
+    supported = extension in {
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".pdf",
+        ".txt", ".md", ".csv", ".json", ".xml", ".html", ".css", ".js", ".log"
+    }
+    if request.args.get("opened") == "1" and supported:
         metadata = load_metadata(workspace)
         item = metadata["files"].setdefault(relative_path, {})
         item["last_opened"] = datetime.now(timezone.utc).isoformat()
         if not save_metadata(metadata, workspace):
             return jsonify({"error": "Could not update file activity."}), 500
-    extension = target.suffix.lower()
     if extension in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"}:
         return send_from_directory(str(organized_folder), relative_path)
     if extension == ".pdf":

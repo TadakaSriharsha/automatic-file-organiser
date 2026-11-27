@@ -1,8 +1,10 @@
 # Fillo — File Organisor
 
-Fillo is a premium smart file organizer with a responsive dashboard, file explorer, category preview, activity history, analytics, and dark/light themes. It organizes uploaded copies into Images, Documents, Spreadsheets, Presentations, Videos, Audio, Code, Archives, and Other folders. Originals are never moved or overwritten, duplicate filenames receive safe numbered names, and exact duplicate content can be excluded.
+FileFlow is a private file workspace built on Flask and SQLite, with a responsive dashboard, file explorer, automatic file categorization, activity history, analytics, and dark/light themes. It organizes uploaded copies into Images, Documents, Spreadsheets, Presentations, Videos, Audio, Code, Archives, and Other folders. Originals are never moved or overwritten, duplicate filenames receive safe numbered names, and exact duplicate content can be excluded.
 
-Fillo uses deterministic file-extension rules and SHA-256 checks for duplicate detection. Dashboard, explorer, category, and analytics data are generated from the local upload and organized-file directories. Organization sessions are persisted to `templates/activity_history.json` and downloads remain private, expiring ZIP links.
+The authenticated workspace supports private per-user uploads, supported file previews and downloads, favorites, tags, collections, recently opened files, custom folders, safe rename/move actions, and a recoverable trash. File moves never overwrite a file with the same name; trash can be restored to the original location or a safe numbered alternative. Dashboard, explorer, category, and analytics data are generated from each user's workspace. Organization sessions are persisted to `activity_history.json`, while generated ZIP downloads are private, expiring links.
+
+FileFlow uses deterministic file-extension rules and SHA-256 checks for duplicate detection. AI document analysis, external file sharing, file version history, and administrative user management are not currently implemented; the product does not claim to provide these services.
 
 ## Run locally
 
