@@ -13,6 +13,7 @@ import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 from email.message import EmailMessage
+from contextlib import contextmanager
 from functools import wraps
 
 from flask import Flask, jsonify, render_template, request, send_file, send_from_directory, url_for, session, redirect
@@ -72,11 +73,19 @@ RISKY_EXTENSIONS = {
 }
 
 
+@contextmanager
 def get_db():
     connection = sqlite3.connect(DATABASE_FILE)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
-    return connection
+    try:
+        yield connection
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 def init_database():
@@ -345,17 +354,50 @@ def save_history(entries, workspace=None):
 def load_metadata(workspace=None):
     metadata_file = (workspace / "library_metadata.json") if workspace else METADATA_FILE
     if not metadata_file.is_file():
-        return {"files": {}, "collections": {}}
+        return {"files": {}, "collections": {}, "trash": {}}
     try:
         data = json.loads(metadata_file.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
-            return {"files": {}, "collections": {}}
+            return {"files": {}, "collections": {}, "trash": {}}
         return {
             "files": data.get("files", {}) if isinstance(data.get("files"), dict) else {},
-            "collections": data.get("collections", {}) if isinstance(data.get("collections"), dict) else {}
+            "collections": data.get("collections", {}) if isinstance(data.get("collections"), dict) else {},
+            "trash": data.get("trash", {}) if isinstance(data.get("trash"), dict) else {}
         }
     except (json.JSONDecodeError, OSError):
-        return {"files": {}, "collections": {}}
+        return {"files": {}, "collections": {}, "trash": {}}
+
+
+def valid_folder_name(value):
+    if not isinstance(value, str):
+        return None
+    name = re.sub(r"\s+", " ", value.strip())
+    if (
+        not name
+        or len(name) > 60
+        or name in {".", ".."}
+        or name.endswith(".")
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _.-]*", name)
+        or name.split(".", 1)[0].upper() in {
+            "CON", "PRN", "AUX", "NUL",
+            *(f"COM{index}" for index in range(1, 10)),
+            *(f"LPT{index}" for index in range(1, 10))
+        }
+    ):
+        return None
+    return name
+
+
+def update_metadata_path(metadata, old_path, new_path):
+    item = metadata["files"].pop(old_path, {})
+    metadata["files"][new_path] = item
+    for members in metadata["collections"].values():
+        if not isinstance(members, list):
+            continue
+        for index, member in enumerate(members):
+            if member == old_path:
+                members[index] = new_path
+    return item
 
 
 def save_metadata(metadata, workspace=None):
