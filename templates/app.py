@@ -447,15 +447,19 @@ def build_library():
                 stat = path.stat()
             except OSError:
                 continue
-            category = path.relative_to(organized_folder).parts[0] if len(path.relative_to(organized_folder).parts) > 1 else get_category(path.name)
+            parts = path.relative_to(organized_folder).parts
             relative_path = path.relative_to(organized_folder).as_posix()
+            custom_folder = len(parts) > 2 and parts[0] == "Folders"
+            category = get_category(path.name) if custom_folder or len(parts) == 1 else parts[0]
             item_metadata = file_metadata.get(relative_path, {})
             files.append({
                 "filename": path.name,
                 "category": category,
+                "folder": "/".join(parts[:-1]) if custom_folder else "",
                 "size": stat.st_size,
                 "size_label": format_size(stat.st_size),
                 "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                "last_opened": item_metadata.get("last_opened", ""),
                 "relative_path": relative_path,
                 "previewable": path.suffix.lower() in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".pdf", ".txt", ".md", ".csv", ".json", ".xml", ".html", ".css", ".js", ".log"},
                 "preview_type": "image" if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"} else ("pdf" if path.suffix.lower() == ".pdf" else ("text" if path.suffix.lower() in {".txt", ".md", ".csv", ".json", ".xml", ".html", ".css", ".js", ".log"} else "none")),
@@ -469,6 +473,7 @@ def build_library():
 def build_stats():
     organized = build_library()
     workspace = current_workspace()
+    metadata = load_metadata(workspace)
     upload_folder = workspace / "uploads" if workspace else UPLOAD_FOLDER
     uploaded = []
     if upload_folder.is_dir():
@@ -489,12 +494,17 @@ def build_stats():
         extension = Path(file["filename"]).suffix.lower() or "none"
         extension_counts[extension] = extension_counts.get(extension, 0) + 1
 
+    folders_root = workspace / "organized" / "Folders"
+    folder_count = sum(1 for path in folders_root.iterdir() if path.is_dir()) if folders_root.is_dir() else 0
     return {
-        "total_files": len(uploaded),
+        "total_files": len(organized),
+        "uploaded_files": len(uploaded),
         "organized_files": len(organized),
         "storage_used": sum(file["size"] for file in organized),
         "storage_used_label": format_size(sum(file["size"] for file in organized)),
         "categories": len(category_counts),
+        "folders": folder_count,
+        "favorites": sum(1 for item in metadata["files"].values() if item.get("favorite") is True),
         "category_counts": category_counts,
         "category_sizes": category_sizes,
         "extension_counts": dict(sorted(extension_counts.items(), key=lambda item: item[1], reverse=True)[:8]),
@@ -1105,6 +1115,172 @@ def api_files():
     })
 
 
+@app.route("/api/folders", methods=["GET", "POST"])
+@login_required
+def api_folders():
+    workspace = current_workspace()
+    organized_folder = workspace / "organized"
+    folders_root = organized_folder / "Folders"
+    if request.method == "GET":
+        folders = []
+        if folders_root.is_dir():
+            for path in sorted(folders_root.iterdir(), key=lambda item: item.name.lower()):
+                if not path.is_dir() or not is_within_directory(folders_root, path):
+                    continue
+                files = [item for item in path.rglob("*") if item.is_file() and is_within_directory(path, item)]
+                folders.append({
+                    "name": path.name,
+                    "files": len(files),
+                    "size": sum(item.stat().st_size for item in files)
+                })
+        return jsonify({"folders": folders})
+
+    payload = request.get_json(silent=True) or {}
+    name = valid_folder_name(payload.get("name"))
+    if not name:
+        return jsonify({"error": "Use a folder name with letters, numbers, spaces, dots, dashes or underscores."}), 400
+    folders_root.mkdir(parents=True, exist_ok=True)
+    if any(path.name.lower() == name.lower() for path in folders_root.iterdir() if path.is_dir()):
+        return jsonify({"error": "A folder with that name already exists."}), 409
+    try:
+        (folders_root / name).mkdir()
+    except OSError:
+        app.logger.exception("Could not create a workspace folder.")
+        return jsonify({"error": "Could not create the folder."}), 500
+    return jsonify({"message": "Folder created.", "name": name}), 201
+
+
+@app.route("/api/folders/<path:folder_name>", methods=["PATCH", "DELETE"])
+@login_required
+def manage_folder(folder_name):
+    old_name = valid_folder_name(folder_name)
+    if not old_name:
+        return jsonify({"error": "Invalid folder name."}), 400
+    workspace = current_workspace()
+    folders_root = workspace / "organized" / "Folders"
+    source = (folders_root / old_name).resolve()
+    if not is_within_directory(folders_root, source) or not source.is_dir():
+        return jsonify({"error": "Folder not found."}), 404
+
+    if request.method == "DELETE":
+        try:
+            source.rmdir()
+        except OSError:
+            return jsonify({"error": "Move or remove the folder's files before deleting it."}), 409
+        return jsonify({"message": "Folder deleted."})
+
+    payload = request.get_json(silent=True) or {}
+    new_name = valid_folder_name(payload.get("name"))
+    if not new_name:
+        return jsonify({"error": "Use a folder name with letters, numbers, spaces, dots, dashes or underscores."}), 400
+    if new_name.lower() == old_name.lower():
+        return jsonify({"message": "Folder name unchanged.", "name": old_name})
+    destination = folders_root / new_name
+    if destination.exists():
+        return jsonify({"error": "A folder with that name already exists."}), 409
+    try:
+        source.rename(destination)
+    except OSError:
+        app.logger.exception("Could not rename a workspace folder.")
+        return jsonify({"error": "Could not rename the folder."}), 500
+
+    old_prefix = f"Folders/{old_name}/"
+    new_prefix = f"Folders/{new_name}/"
+    metadata = load_metadata(workspace)
+    for old_path in list(metadata["files"]):
+        if old_path.startswith(old_prefix):
+            metadata["files"][new_prefix + old_path[len(old_prefix):]] = metadata["files"].pop(old_path)
+    for members in metadata["collections"].values():
+        if isinstance(members, list):
+            for index, member in enumerate(members):
+                if isinstance(member, str) and member.startswith(old_prefix):
+                    members[index] = new_prefix + member[len(old_prefix):]
+    if not save_metadata(metadata, workspace):
+        try:
+            destination.rename(source)
+        except OSError:
+            app.logger.exception("Could not roll back a folder rename after metadata save failed.")
+        return jsonify({"error": "Could not save folder metadata."}), 500
+    return jsonify({"message": "Folder renamed.", "name": new_name})
+
+
+@app.route("/api/trash")
+@login_required
+def api_trash():
+    workspace = current_workspace()
+    metadata = load_metadata(workspace)
+    trash_root = workspace / "trash"
+    files = []
+    for trash_id, item in metadata["trash"].items():
+        if not isinstance(item, dict):
+            continue
+        stored_path = item.get("stored_path", "")
+        target = (workspace / stored_path).resolve()
+        if not is_within_directory(trash_root, target) or not target.is_file():
+            continue
+        files.append({
+            "id": trash_id,
+            "filename": item.get("filename", target.name),
+            "original_path": item.get("original_path", ""),
+            "deleted_at": item.get("deleted_at", ""),
+            "size": target.stat().st_size,
+            "size_label": format_size(target.stat().st_size)
+        })
+    files.sort(key=lambda item: item["deleted_at"], reverse=True)
+    return jsonify({"files": files})
+
+
+@app.route("/api/trash/<trash_id>", methods=["POST", "DELETE"])
+@login_required
+def manage_trashed_file(trash_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{16}", trash_id):
+        return jsonify({"error": "File not found in trash."}), 404
+    workspace = current_workspace()
+    metadata = load_metadata(workspace)
+    item = metadata["trash"].get(trash_id)
+    if not isinstance(item, dict):
+        return jsonify({"error": "File not found in trash."}), 404
+    trash_root = workspace / "trash"
+    target = (workspace / item.get("stored_path", "")).resolve()
+    if not is_within_directory(trash_root, target) or not target.is_file():
+        return jsonify({"error": "File not found in trash."}), 404
+
+    if request.method == "DELETE":
+        try:
+            target.unlink()
+        except OSError:
+            app.logger.exception("Could not permanently delete a trashed file.")
+            return jsonify({"error": "Could not delete the file."}), 500
+        del metadata["trash"][trash_id]
+        if not save_metadata(metadata, workspace):
+            return jsonify({"error": "File was deleted, but its trash record could not be updated."}), 500
+        return jsonify({"message": "File permanently deleted."})
+
+    original_path = item.get("original_path", "")
+    organized_root = workspace / "organized"
+    destination = (organized_root / original_path).resolve()
+    if not original_path or not is_within_directory(organized_root, destination):
+        return jsonify({"error": "The original file location is invalid."}), 400
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination = unique_path(destination.parent, destination.name)
+    try:
+        target.replace(destination)
+    except OSError:
+        app.logger.exception("Could not restore a trashed file.")
+        return jsonify({"error": "Could not restore the file."}), 500
+    metadata["files"][destination.relative_to(organized_root).as_posix()] = item.get("file_metadata", {})
+    file_meta = metadata["files"][destination.relative_to(organized_root).as_posix()]
+    collection = file_meta.get("collection")
+    if isinstance(collection, str) and collection:
+        members = metadata["collections"].setdefault(collection, [])
+        if destination.relative_to(organized_root).as_posix() not in members:
+            members.append(destination.relative_to(organized_root).as_posix())
+    del metadata["trash"][trash_id]
+    if not save_metadata(metadata, workspace):
+        return jsonify({"error": "File was restored, but its metadata could not be saved."}), 500
+    return jsonify({"message": "File restored."})
+
+
 @app.route("/api/files/bulk", methods=["POST"])
 @login_required
 def bulk_update_files():
@@ -1116,19 +1292,64 @@ def bulk_update_files():
     action = payload.get("action")
     if not isinstance(paths, list) or not paths:
         return jsonify({"error": "Select at least one file."}), 400
-    if action not in {"favorite", "unfavorite", "add_tag", "remove_tag", "collection"}:
+    if action not in {"favorite", "unfavorite", "add_tag", "remove_tag", "collection", "move", "trash"}:
         return jsonify({"error": "Unsupported bulk action."}), 400
 
     workspace = current_workspace()
     metadata = load_metadata(workspace)
     file_metadata = metadata["files"]
     organized_folder = workspace / "organized"
+    destination_folder = None
+    if action == "move":
+        folder_name = valid_folder_name(payload.get("value"))
+        if not folder_name:
+            return jsonify({"error": "Choose a valid destination folder."}), 400
+        destination_folder = (organized_folder / "Folders" / folder_name).resolve()
+        if not is_within_directory(organized_folder, destination_folder) or not destination_folder.is_dir():
+            return jsonify({"error": "Destination folder not found."}), 404
     updated = 0
     for relative_path in paths:
         if not isinstance(relative_path, str):
             continue
         target = (organized_folder / relative_path).resolve()
         if not is_within_directory(organized_folder, target) or not target.is_file():
+            continue
+        if action == "move":
+            destination = unique_path(destination_folder, target.name)
+            try:
+                target.replace(destination)
+            except OSError:
+                app.logger.exception("Could not move a workspace file.")
+                continue
+            update_metadata_path(
+                metadata,
+                relative_path,
+                destination.relative_to(organized_folder).as_posix()
+            )
+            updated += 1
+            continue
+        if action == "trash":
+            trash_root = workspace / "trash"
+            trash_root.mkdir(parents=True, exist_ok=True)
+            trash_id = secrets.token_urlsafe(12)
+            trashed_path = trash_root / f"{trash_id}{target.suffix}"
+            try:
+                target.replace(trashed_path)
+            except OSError:
+                app.logger.exception("Could not move a workspace file to trash.")
+                continue
+            item_metadata = file_metadata.pop(relative_path, {})
+            for members in metadata["collections"].values():
+                if isinstance(members, list) and relative_path in members:
+                    members.remove(relative_path)
+            metadata["trash"][trash_id] = {
+                "filename": target.name,
+                "original_path": relative_path,
+                "stored_path": trashed_path.relative_to(workspace).as_posix(),
+                "deleted_at": datetime.now(timezone.utc).isoformat(),
+                "file_metadata": item_metadata
+            }
+            updated += 1
             continue
         item = file_metadata.setdefault(relative_path, {})
         if action == "favorite":
