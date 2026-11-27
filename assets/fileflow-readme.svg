@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title description">
+  <title id="title">FileFlow workspace preview</title>
+  <desc id="description">A dark file dashboard illustration with category cards, a file list, and subtle animated highlights.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111a35"/>
+      <stop offset="1" stop-color="#090e1f"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7c86ff"/>
+      <stop offset="55%" stop-color="#56d8e9"/>
+      <stop offset="100%" stop-color="#8d7aff"/>
+      <animate attributeName="x1" values="0%;100%;0%" dur="10s" repeatCount="indefinite"/>
+      <animate attributeName="x2" values="100%;0%;100%" dur="10s" repeatCount="indefinite"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b2648"/>
+      <stop offset="1" stop-color="#151e3b"/>
+    </linearGradient>
+    <filter id="soft-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="13" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="560" rx="26" fill="url(#background)"/>
+  <circle cx="1010" cy="90" r="155" fill="#6675ff" opacity=".08"/>
+  <circle cx="250" cy="510" r="170" fill="#3ecfcb" opacity=".05"/>
+
+  <rect x="34" y="30" width="1132" height="500" rx="20" fill="#0c1226" stroke="#7180ff" stroke-opacity=".25"/>
+  <path d="M34 88H1166" stroke="#aab5e8" stroke-opacity=".12"/>
+  <circle cx="62" cy="59" r="6" fill="#ef86c3"/>
+  <circle cx="84" cy="59" r="6" fill="#ffb45f"/>
+  <circle cx="106" cy="59" r="6" fill="#55d9ae"/>
+  <rect x="140" y="48" width="22" height="22" rx="7" fill="url(#accent)"/>
+  <path d="M147 55h8v8h-8z" fill="#fff" opacity=".9"/>
+  <text x="171" y="64" fill="#edf0ff" font-family="Inter,Segoe UI,sans-serif" font-size="15" font-weight="700">FileFlow</text>
+  <rect x="1088" y="47" width="42" height="24" rx="12" fill="#1e2949"/>
+  <circle cx="1101" cy="59" r="6" fill="#6ee0be"/>
+  <path d="M1113 55h10M1113 62h7" stroke="#a9b5d7" stroke-width="2" stroke-linecap="round"/>
+
+  <path d="M224 88v442" stroke="#aab5e8" stroke-opacity=".1"/>
+  <rect x="50" y="113" width="158" height="34" rx="10" fill="#7c86ff" opacity=".13"/>
+  <rect x="62" y="124" width="12" height="12" rx="3" fill="#9ea8ff"/>
+  <text x="84" y="135" fill="#cbd1ff" font-family="Inter,Segoe UI,sans-serif" font-size="12" font-weight="600">Overview</text>
+  <g fill="#8895b8" font-family="Inter,Segoe UI,sans-serif" font-size="12">
+    <rect x="62" y="169" width="12" height="12" rx="3" fill="#7884ab"/>
+    <text x="84" y="180">All files</text>
+    <rect x="62" y="212" width="12" height="12" rx="3" fill="#7884ab"/>
+    <text x="84" y="223">Recently opened</text>
+    <rect x="62" y="255" width="12" height="12" rx="3" fill="#7884ab"/>
+    <text x="84" y="266">Favorites</text>
+    <rect x="62" y="298" width="12" height="12" rx="3" fill="#7884ab"/>
+    <text x="84" y="309">My folders</text>
+    <rect x="62" y="341" width="12" height="12" rx="3" fill="#7884ab"/>
+    <text x="84" y="352">Trash</text>
+  </g>
+  <rect x="50" y="473" width="158" height="39" rx="11" fill="#141e39" stroke="#aab5e8" stroke-opacity=".11"/>
+  <circle cx="69" cy="492" r="6" fill="#55d9ae"/>
+  <text x="84" y="490" fill="#eef1ff" font-family="Inter,Segoe UI,sans-serif" font-size="10" font-weight="700">Personal workspace</text>
+  <text x="84" y="503" fill="#8692b2" font-family="Inter,Segoe UI,sans-serif" font-size="8">Private to your account</text>
+
+  <text x="258" y="126" fill="#9ca8c8" font-family="Inter,Segoe UI,sans-serif" font-size="10" font-weight="700" letter-spacing="2">YOUR WORKSPACE</text>
+  <text x="258" y="161" fill="#f3f5ff" font-family="Inter,Segoe UI,sans-serif" font-size="25" font-weight="700">Everything in its place.</text>
+  <text x="258" y="184" fill="#99a5c4" font-family="Inter,Segoe UI,sans-serif" font-size="12">A clear view of your digital life.</text>
+
+  <g>
+    <rect x="258" y="207" width="270" height="111" rx="15" fill="url(#card)" stroke="#aab5e8" stroke-opacity=".12"/>
+    <rect x="278" y="226" width="35" height="35" rx="11" fill="#7c86ff" opacity=".2"/>
+    <path d="M287 236h17v14h-17zM291 232h13" fill="none" stroke="#adb6ff" stroke-width="2" stroke-linejoin="round"/>
+    <text x="326" y="239" fill="#a4afce" font-family="Inter,Segoe UI,sans-serif" font-size="10">LIBRARY</text>
+    <text x="278" y="283" fill="#f0f2ff" font-family="Inter,Segoe UI,sans-serif" font-size="17" font-weight="700">Your files</text>
+    <path d="M278 298h208" stroke="#aab5e8" stroke-opacity=".12" stroke-linecap="round"/>
+    <path d="M278 298h144" stroke="url(#accent)" stroke-width="3" stroke-linecap="round" stroke-dasharray="144" stroke-dashoffset="144">
+      <animate attributeName="stroke-dashoffset" values="144;0;0" keyTimes="0;.7;1" dur="3.2s" repeatCount="indefinite"/>
+    </path>
+  </g>
+  <g>
+    <rect x="543" y="207" width="270" height="111" rx="15" fill="url(#card)" stroke="#aab5e8" stroke-opacity=".12"/>
+    <rect x="563" y="226" width="35" height="35" rx="11" fill="#42d4c7" opacity=".15"/>
+    <circle cx="580.5" cy="243.5" r="10" fill="none" stroke="#6ee0d1" stroke-width="2"/>
+    <path d="M580 237v7l5 3" fill="none" stroke="#6ee0d1" stroke-width="2" stroke-linecap="round"/>
+    <text x="611" y="239" fill="#a4afce" font-family="Inter,Segoe UI,sans-serif" font-size="10">STORAGE</text>
+    <text x="563" y="283" fill="#f0f2ff" font-family="Inter,Segoe UI,sans-serif" font-size="17" font-weight="700">Usage overview</text>
+    <path d="M563 298h208" stroke="#aab5e8" stroke-opacity=".12" stroke-linecap="round"/>
+    <path d="M563 298h94" stroke="#54d8cb" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g>
+    <rect x="828" y="207" width="310" height="111" rx="15" fill="url(#card)" stroke="#aab5e8" stroke-opacity=".12"/>
+    <rect x="848" y="226" width="35" height="35" rx="11" fill="#ffb45f" opacity=".16"/>
+    <path d="M856 238h9l3 3h8v12h-20zM856 237v-3h8l3 3h9" fill="none" stroke="#ffc479" stroke-width="1.7" stroke-linejoin="round"/>
+    <text x="896" y="239" fill="#a4afce" font-family="Inter,Segoe UI,sans-serif" font-size="10">WORKSPACE</text>
+    <text x="848" y="283" fill="#f0f2ff" font-family="Inter,Segoe UI,sans-serif" font-size="17" font-weight="700">Quick access</text>
+    <path d="M848 298h248" stroke="#aab5e8" stroke-opacity=".12" stroke-linecap="round"/>
+    <path d="M848 298h171" stroke="#ffb45f" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <text x="258" y="355" fill="#f0f2ff" font-family="Inter,Segoe UI,sans-serif" font-size="14" font-weight="700">Recently opened</text>
+  <text x="1045" y="355" fill="#a8b2ff" font-family="Inter,Segoe UI,sans-serif" font-size="10">View library  →</text>
+
+  <g>
+    <rect x="258" y="373" width="880" height="43" rx="10" fill="#131d39"/>
+    <rect x="270" y="381" width="27" height="27" rx="8" fill="#7c86ff" opacity=".18"/>
+    <path d="M278 387h11v15h-11zM281 390h6M281 394h6M281 398h4" fill="none" stroke="#adb6ff" stroke-width="1.4" stroke-linecap="round"/>
+    <text x="309" y="391" fill="#edf0ff" font-family="Inter,Segoe UI,sans-serif" font-size="11" font-weight="600">Project brief</text>
+    <text x="309" y="404" fill="#8995b5" font-family="Inter,Segoe UI,sans-serif" font-size="9">Documents  ·  PDF</text>
+    <circle cx="1100" cy="394" r="2" fill="#a0accd"/>
+    <circle cx="1108" cy="394" r="2" fill="#a0accd"/>
+    <circle cx="1116" cy="394" r="2" fill="#a0accd"/>
+  </g>
+  <g>
+    <rect x="258" y="423" width="880" height="43" rx="10" fill="#111a33"/>
+    <rect x="270" y="431" width="27" height="27" rx="8" fill="#50d6ad" opacity=".14"/>
+    <path d="M277 438h13v13h-13zM280 441h7M280 444h7M280 447h4" fill="none" stroke="#79dfbd" stroke-width="1.4" stroke-linecap="round"/>
+    <text x="309" y="441" fill="#edf0ff" font-family="Inter,Segoe UI,sans-serif" font-size="11" font-weight="600">Field notes</text>
+    <text x="309" y="454" fill="#8995b5" font-family="Inter,Segoe UI,sans-serif" font-size="9">Images  ·  PNG</text>
+    <circle cx="1100" cy="444" r="2" fill="#a0accd"/>
+    <circle cx="1108" cy="444" r="2" fill="#a0accd"/>
+    <circle cx="1116" cy="444" r="2" fill="#a0accd"/>
+  </g>
+  <g>
+    <rect x="258" y="473" width="880" height="43" rx="10" fill="#131d39"/>
+    <rect x="270" y="481" width="27" height="27" rx="8" fill="#ffb45f" opacity=".15"/>
+    <path d="M278 487h11v15h-11zM281 490h5M281 494h5M281 498h5" fill="none" stroke="#ffc479" stroke-width="1.4" stroke-linecap="round"/>
+    <text x="309" y="491" fill="#edf0ff" font-family="Inter,Segoe UI,sans-serif" font-size="11" font-weight="600">Budget overview</text>
+    <text x="309" y="504" fill="#8995b5" font-family="Inter,Segoe UI,sans-serif" font-size="9">Spreadsheets  ·  XLSX</text>
+    <circle cx="1100" cy="494" r="2" fill="#a0accd"/>
+    <circle cx="1108" cy="494" r="2" fill="#a0accd"/>
+    <circle cx="1116" cy="494" r="2" fill="#a0accd"/>
+  </g>
+
+  <g transform="translate(0 0)">
+    <rect x="930" y="114" width="190" height="45" rx="12" fill="#202c4c" stroke="#9eafff" stroke-opacity=".25"/>
+    <circle cx="951" cy="136" r="10" fill="#55d9ae" opacity=".16"/>
+    <path d="M947 136l3 3 6-7" fill="none" stroke="#6de0bd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="969" y="133" fill="#f0f3ff" font-family="Inter,Segoe UI,sans-serif" font-size="9" font-weight="700">Sorted as you upload</text>
+    <text x="969" y="146" fill="#98a5c6" font-family="Inter,Segoe UI,sans-serif" font-size="8">Clear categories. No guesswork.</text>
+    <animateTransform attributeName="transform" type="translate" values="0 0;0 -5;0 0" dur="4s" repeatCount="indefinite"/>
+  </g>
+  <circle cx="1131" cy="179" r="3" fill="#58d8d1" filter="url(#soft-glow)">
+    <animate attributeName="opacity" values=".25;1;.25" dur="2.4s" repeatCount="indefinite"/>
+  </circle>
+</svg>
