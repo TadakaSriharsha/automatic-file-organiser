@@ -76,9 +76,9 @@ button { -webkit-tap-highlight-color: transparent; }
   background:var(--panel-2); color:var(--muted); transition:.2s;
 }
 .sidebar-collapse:hover { color:var(--text); border-color:var(--border-strong); transform:translateX(-1px); }
-.nav-list { display:grid; gap:6px; margin-top:10px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+.nav-list { display:grid; gap:4px; max-height:calc(100vh - 180px); margin-top:10px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
 .nav-item {
-  position:relative; height:48px; display:flex; align-items:center; gap:11px; padding:0 10px;
+  position:relative; height:40px; display:flex; align-items:center; gap:11px; padding:0 10px;
   border:0; border-radius:12px; background:transparent; color:var(--muted); text-align:left;
   transition:transform .18s, background .18s, color .18s;
 }
@@ -93,7 +93,7 @@ button { -webkit-tap-highlight-color: transparent; }
   background:linear-gradient(180deg,#9ba4ff,#48d7ef); box-shadow:0 0 16px rgba(72,215,239,.35); content:"";
 }
 .nav-icon {
-  width:34px; height:34px; display:grid; flex:0 0 auto; place-items:center;
+  width:30px; height:30px; display:grid; flex:0 0 auto; place-items:center;
   border-radius:10px; background:rgba(124,134,255,.075); font-size:16px;
   transition:.18s;
 }
