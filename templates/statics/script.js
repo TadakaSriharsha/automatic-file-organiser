@@ -19,6 +19,8 @@ let previewReady = false;
 let selectedFiles = new Set();
 let lastPreviewFile = null;
 let confirmAction = null;
+let folders = [];
+let activeFileFilter = "all";
 
 const $ = (id) => document.getElementById(id);
 
@@ -67,17 +69,21 @@ function showToast(message) {
 }
 
 function navigate(page) {
+  activeFileFilter = page === "favorites" || page === "recent" ? page : "all";
+  const activePanel = activeFileFilter === "all" ? page : "explorer";
   document.querySelectorAll(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.page === page));
-  document.querySelectorAll("[data-page-panel]").forEach(panel => panel.classList.toggle("active", panel.dataset.pagePanel === page));
-  const labels = { dashboard:"Dashboard", explorer:"File Explorer", organize:"Organize Files", categories:"Categories", history:"Activity History", analytics:"Analytics", settings:"Settings" };
+  document.querySelectorAll("[data-page-panel]").forEach(panel => panel.classList.toggle("active", panel.dataset.pagePanel === activePanel));
+  const labels = { dashboard:"Dashboard", explorer:"File Explorer", recent:"Recently opened", favorites:"Favorites", folders:"My folders", trash:"Trash", organize:"Organize Files", categories:"Categories", history:"Activity History", analytics:"Analytics", settings:"Settings" };
   $("pageTitle").textContent = labels[page] || "Dashboard";
   document.body.dataset.page = page;
   $("sidebar").classList.remove("open");
   window.scrollTo({ top: 0, behavior: "smooth" });
-  if (page === "explorer") renderExplorer();
+  if (activePanel === "explorer") renderExplorer();
   if (page === "categories") renderCategories();
   if (page === "history") renderHistory();
   if (page === "analytics") renderAnalytics();
+  if (page === "folders") loadFolders();
+  if (page === "trash") loadTrash();
 }
 
 async function loadStats() {
@@ -105,6 +111,29 @@ async function loadFiles() {
   }
 }
 
+async function loadFolders() {
+  try {
+    const response = await fetch("/api/folders");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Unable to load folders");
+    folders = data.folders || [];
+    renderFolders();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function loadTrash() {
+  try {
+    const response = await fetch("/api/trash");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Unable to load trash");
+    renderTrash(data.files || []);
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
 function setText(id, value) { $(id).textContent = value; }
 
 function animateCount(id, target, duration = 600) {
@@ -127,13 +156,13 @@ function animateCount(id, target, duration = 600) {
 
 function renderDashboard(data) {
   animateCount("statTotal", data.total_files);
-  animateCount("statOrganized", data.organized_files);
+  animateCount("statOrganized", data.favorites || 0);
   setText("statStorage", data.storage_used_label);
-  setText("statCategories", data.categories.toLocaleString());
+  setText("statCategories", (data.folders || 0).toLocaleString());
   setText("analyticsTotal", data.total_files.toLocaleString());
-  setText("analyticsOrganized", data.organized_files.toLocaleString());
+  setText("analyticsOrganized", (data.favorites || 0).toLocaleString());
   setText("analyticsStorage", data.storage_used_label);
-  setText("analyticsCategories", data.categories.toLocaleString());
+  setText("analyticsCategories", (data.folders || 0).toLocaleString());
 
   const chart = $("categoryChart");
   const counts = data.category_counts || {};
@@ -143,7 +172,7 @@ function renderDashboard(data) {
   Object.entries(counts).sort((a,b) => b[1]-a[1]).forEach(([category,count]) => {
     const row = document.createElement("div");
     row.className = "bar-row";
-    row.innerHTML = `<span>${category}</span><div class="bar-track"><div class="bar-fill" style="width:${count/maxCount*100}%"></div></div><strong>${count}</strong>`;
+    row.innerHTML = `<span>${escapeHtml(category)}</span><div class="bar-track"><div class="bar-fill" style="width:${count/maxCount*100}%"></div></div><strong>${count}</strong>`;
     chart.appendChild(row);
   });
 
@@ -158,7 +187,7 @@ function renderDashboard(data) {
   data.history.slice(0,5).forEach(run => {
     const row = document.createElement("div");
     row.className = "activity-row";
-    row.innerHTML = `<span class="dot"></span><div><strong>${run.files_organized} files organized</strong><small>${new Date(run.date).toLocaleString()}</small></div>`;
+    row.innerHTML = `<span class="dot"></span><div><strong>${Number(run.files_organized) || 0} files organized</strong><small>${escapeHtml(new Date(run.date).toLocaleString())}</small></div>`;
     activity.appendChild(row);
   });
 
@@ -168,7 +197,7 @@ function renderDashboard(data) {
   data.recent_organized.slice(0,5).forEach(file => {
     const row = document.createElement("div");
     row.className = "recent-row";
-    row.innerHTML = `<span class="file-mini-icon">${fileIcon(file.filename)}</span><div><strong title="${file.filename}">${file.filename}</strong><small>${file.category}</small></div><span class="size">${file.size_label}</span>`;
+    row.innerHTML = `<span class="file-mini-icon">${fileIcon(file.filename)}</span><div><strong title="${escapeHtml(file.filename)}">${escapeHtml(file.filename)}</strong><small>${escapeHtml(file.category)}</small></div><span class="size">${escapeHtml(file.size_label)}</span>`;
     recent.appendChild(row);
   });
   renderAnalytics();

@@ -26,6 +26,10 @@
             <nav class="nav-list" aria-label="Main navigation">
                 <button class="nav-item active" type="button" data-page="dashboard"><span class="nav-icon">⌂</span><span class="nav-label">Dashboard</span></button>
                 <button class="nav-item" type="button" data-page="explorer"><span class="nav-icon">▦</span><span class="nav-label">File Explorer</span></button>
+                <button class="nav-item" type="button" data-page="recent"><span class="nav-icon">◷</span><span class="nav-label">Recently opened</span></button>
+                <button class="nav-item" type="button" data-page="favorites"><span class="nav-icon">★</span><span class="nav-label">Favorites</span></button>
+                <button class="nav-item" type="button" data-page="folders"><span class="nav-icon">▱</span><span class="nav-label">My folders</span></button>
+                <button class="nav-item" type="button" data-page="trash"><span class="nav-icon">⌫</span><span class="nav-label">Trash</span></button>
                 <button class="nav-item" type="button" data-page="organize"><span class="nav-icon">↯</span><span class="nav-label">Organize Files</span></button>
                 <button class="nav-item" type="button" data-page="categories"><span class="nav-icon">◫</span><span class="nav-label">Categories</span></button>
                 <button class="nav-item" type="button" data-page="history"><span class="nav-icon">◷</span><span class="nav-label">Activity History</span></button>
@@ -150,12 +154,35 @@
                         <div class="bulk-actions">
                             <button class="secondary-button" id="favoriteSelectedBtn" type="button">★ Favorite</button>
                             <button class="secondary-button" id="unfavoriteSelectedBtn" type="button">☆ Unfavorite</button>
+                            <button class="secondary-button" id="renameSelectedBtn" type="button">Rename</button>
+                            <button class="secondary-button" id="moveSelectedBtn" type="button">Move to folder</button>
+                            <button class="danger-button" id="trashSelectedBtn" type="button">Move to trash</button>
                             <button class="secondary-button" id="tagSelectedBtn" type="button">Add tag</button>
                             <button class="secondary-button" id="collectionSelectedBtn" type="button">Add to collection</button>
                             <button class="text-button" id="clearSelectionBtn" type="button">Clear</button>
                         </div>
                     </div>
                     <div class="card explorer-card"><div id="fileExplorer" class="file-grid"></div></div>
+                </section>
+
+                <section class="page" data-page-panel="folders">
+                    <section class="card folders-card">
+                        <div class="card-heading"><div><span class="section-kicker">YOUR WORKSPACE</span><h3>My folders</h3></div></div>
+                        <p class="muted">Create folders and move files into them. Deleting a folder is allowed only when it is empty.</p>
+                        <form class="folder-create-form" id="folderCreateForm">
+                            <label class="search-box">▱ <input id="newFolderName" type="text" maxlength="60" placeholder="New folder name" required></label>
+                            <button class="primary-button" type="submit">Create folder</button>
+                        </form>
+                        <div id="folderList" class="folder-list"></div>
+                    </section>
+                </section>
+
+                <section class="page" data-page-panel="trash">
+                    <section class="card folders-card">
+                        <div class="card-heading"><div><span class="section-kicker">RECOVERABLE FILES</span><h3>Trash</h3></div></div>
+                        <p class="muted">Files stay here until you restore them or permanently delete them.</p>
+                        <div id="trashList" class="trash-list"></div>
+                    </section>
                 </section>
 
                 <section class="page" data-page-panel="categories">
